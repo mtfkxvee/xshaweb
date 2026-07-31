@@ -1,0 +1,111 @@
+import { createServerFn } from "@tanstack/react-start";
+import { getCookie } from "@tanstack/react-start/server";
+import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
+import { erpRequest, jsonFields, jsonFilters } from "./client";
+import { isErpnextConfigured } from "./config";
+import { mockOrders } from "./mock-data";
+import type { Order, OrderLine } from "./types";
+
+const COMPANY = "X-SHA";
+const CURRENCY = "IDR";
+const PRICE_LIST = "Standard Selling";
+
+export type CreateOrderResult =
+  | { ok: true; orderId: string }
+  | {
+      ok: false;
+      reason: "not_configured" | "not_authenticated" | "erpnext_error";
+      message?: string;
+    };
+
+export const createOrder = createServerFn({ method: "POST" })
+  .validator((input: { items: OrderLine[]; note?: string }) => input)
+  .handler(async ({ data }): Promise<CreateOrderResult> => {
+    if (!isErpnextConfigured()) return { ok: false, reason: "not_configured" };
+
+    const sid = getCookie(SESSION_COOKIE);
+    if (!sid) return { ok: false, reason: "not_authenticated" };
+
+    const auth = await getCurrentCustomer();
+    if (!auth?.customer) return { ok: false, reason: "not_authenticated" };
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+
+      const items = await Promise.all(
+        data.items.map(async (line) => {
+          const itemRes = await erpRequest<{ data: { stock_uom: string } }>(
+            `/api/resource/Item/${encodeURIComponent(line.itemCode)}`,
+            { sid, params: { fields: jsonFields(["stock_uom"]) } },
+          );
+          return {
+            item_code: line.itemCode,
+            item_name: line.itemName,
+            qty: line.qty,
+            rate: line.rate,
+            uom: itemRes.data.stock_uom,
+            conversion_factor: 1,
+          };
+        }),
+      );
+
+      const res = await erpRequest<{ data: { name: string } }>("/api/resource/Quotation", {
+        method: "POST",
+        sid,
+        body: {
+          quotation_to: "Customer",
+          party_name: auth.customer.id,
+          transaction_date: today,
+          order_type: "Shopping Cart",
+          company: COMPANY,
+          currency: CURRENCY,
+          conversion_rate: 1,
+          selling_price_list: PRICE_LIST,
+          price_list_currency: CURRENCY,
+          plc_conversion_rate: 1,
+          items,
+          ...(data.note ? { other_charges_calculation: data.note } : {}),
+        },
+      });
+
+      return { ok: true, orderId: res.data.name };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: "erpnext_error",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
+export const getMyOrders = createServerFn({ method: "GET" }).handler(async (): Promise<Order[]> => {
+  if (!isErpnextConfigured()) return mockOrders;
+
+  const sid = getCookie(SESSION_COOKIE);
+  if (!sid) return [];
+
+  const auth = await getCurrentCustomer();
+  if (!auth?.customer) return [];
+
+  const res = await erpRequest<{
+    data: { name: string; transaction_date: string; status: string; grand_total: number }[];
+  }>("/api/resource/Quotation", {
+    sid,
+    params: {
+      fields: jsonFields(["name", "transaction_date", "status", "grand_total"]),
+      filters: jsonFilters([
+        ["quotation_to", "=", "Customer"],
+        ["party_name", "=", auth.customer.id],
+      ]),
+      order_by: "transaction_date desc",
+      limit_page_length: "20",
+    },
+  });
+
+  return res.data.map((q) => ({
+    id: q.name,
+    date: q.transaction_date,
+    status: q.status,
+    total: q.grand_total,
+  }));
+});
