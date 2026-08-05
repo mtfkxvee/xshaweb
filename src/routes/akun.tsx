@@ -1,42 +1,42 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { SiteLayout } from "@/components/site-layout";
 import { Icon } from "@/components/icon";
-import { useCart } from "@/components/cart-context";
+import { AnimatedNumber } from "@/components/animated-number";
+import { Reveal } from "@/components/reveal";
 import { useAuth, AUTH_QUERY_KEY } from "@/hooks/use-auth";
 import { IMG } from "@/lib/catalog-data";
+import { formatIDR } from "@/lib/utils";
 import { logoutCustomer } from "@/lib/erpnext/auth";
 import { getMyLoyaltyStatus } from "@/lib/erpnext/loyalty";
+import { getMyOrders } from "@/lib/erpnext/orders";
+import { getPromoProducts } from "@/lib/erpnext/products";
+import { getSiteSettings } from "@/lib/erpnext/site-settings";
+import { mockSiteSettings } from "@/lib/erpnext/mock-data";
 
 export const Route = createFileRoute("/akun")({
   head: () => ({
     meta: [
-      { title: "Akun Member | X-SHA Mobile" },
+      { title: "Akun Saya | X-SHA" },
       {
         name: "description",
         content:
-          "Kartu member digital, poin, voucher, riwayat transaksi, dan pengaturan akun X-SHA dalam tampilan mobile.",
+          "Kartu member digital, saldo poin loyalitas, promo khusus member, dan riwayat transaksi X-SHA.",
       },
-      { property: "og:title", content: "Akun Member | X-SHA Mobile" },
+      { property: "og:title", content: "Akun Saya | X-SHA" },
       {
         property: "og:description",
-        content: "Tunjukkan QR member Anda di kasir dan kumpulkan poin di 16+ outlet X-SHA.",
+        content: "Tunjukkan QR member Anda di kasir dan pantau poin loyalitas X-SHA.",
       },
     ],
   }),
-  component: AkunMobile,
+  component: Akun,
 });
 
-const menu = [
-  { icon: "stars", label: "Poin & Reward", to: "/member" as const },
-  { icon: "receipt_long", label: "Riwayat Transaksi", to: "/member" as const },
-  { icon: "sell", label: "Promo Member", to: "/promo" as const },
-];
-
-function AkunMobile() {
+function Akun() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { openCart } = useCart();
   const { user, isLoading: authLoading, isLoggedIn } = useAuth();
 
   useEffect(() => {
@@ -51,9 +51,27 @@ function AkunMobile() {
     enabled: isLoggedIn,
   });
 
+  const { data: orders } = useQuery({
+    queryKey: ["my-orders"],
+    queryFn: () => getMyOrders(),
+    enabled: isLoggedIn,
+  });
+
+  const { data: promos } = useQuery({
+    queryKey: ["promo-products"],
+    queryFn: () => getPromoProducts(),
+  });
+
+  const { data: settingsData } = useQuery({
+    queryKey: ["site-settings"],
+    queryFn: () => getSiteSettings(),
+    staleTime: 5 * 60_000,
+  });
+  const settings = settingsData ?? mockSiteSettings;
+
   const handleLogout = async () => {
     await logoutCustomer();
-    await queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
+    queryClient.setQueryData(AUTH_QUERY_KEY, null);
     navigate({ to: "/" });
   };
 
@@ -62,143 +80,231 @@ function AkunMobile() {
   const displayName = user?.customer?.name ?? user?.email ?? "";
 
   return (
-    <div className="min-h-screen overflow-x-hidden">
-      <div className="pointer-events-none fixed -left-16 top-20 -z-10 h-64 w-64 rounded-full bg-primary/5 blur-[80px]" />
-      <div className="pointer-events-none fixed -right-16 bottom-40 -z-10 h-80 w-80 rounded-full bg-secondary/5 blur-[100px]" />
-
-      <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between glass-bar border-b px-4">
-        <Link to="/" className="font-display text-[24px] font-extrabold text-primary">
-          X-SHA
-        </Link>
-        <div className="flex items-center gap-stack-sm">
-          <button
-            type="button"
-            onClick={openCart}
-            aria-label="Buka keranjang"
-            className="flex h-10 w-10 items-center justify-center text-on-surface-variant transition-colors hover:text-primary"
-          >
-            <Icon name="shopping_cart" />
-          </button>
-          <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/20 p-0.5">
-            <img
-              src={IMG.avatar}
-              alt={`Foto profil ${displayName}`}
-              className="h-full w-full rounded-full object-cover"
-            />
+    <SiteLayout>
+      <div className="mx-auto max-w-container-max px-gutter pb-stack-lg">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-headline-lg-mobile text-on-surface md:text-display-lg">
+              Akun Saya
+            </h1>
+            <p className="text-label-md text-on-surface-variant">
+              Halo, <span className="font-bold text-primary">{displayName}</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/profil"
+              className="flex items-center gap-2 rounded-xl border border-primary/30 px-4 py-2 text-sm font-bold text-primary transition-colors hover:bg-primary/5"
+            >
+              <Icon name="person_edit" className="text-[18px]" />
+              <span className="hidden sm:inline">Edit Profil</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-2 rounded-xl border border-error/30 px-4 py-2 text-sm font-bold text-error transition-colors hover:bg-error/5"
+            >
+              <Icon name="logout" className="text-[18px]" />
+              <span className="hidden sm:inline">Keluar</span>
+            </button>
           </div>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-md space-y-6 px-4 pb-28 pt-20">
-        <section className="flex flex-col gap-1">
-          <h1 className="text-headline-lg-mobile text-on-surface">Member Akun</h1>
-          <p className="text-label-md text-on-surface-variant">
-            Halo, <span className="font-bold text-primary">{displayName}</span>
-          </p>
-        </section>
-
-        <section className="relative rounded-2xl member-card-gradient p-6 text-on-primary shadow-xl animate-rise">
-          <div className="relative z-10">
-            <div className="mb-6 flex items-start justify-between">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="relative flex aspect-[1.6/1] flex-col justify-between rounded-[24px] member-card-gradient p-6 text-on-primary shadow-2xl md:aspect-auto md:h-64 md:p-8 md:col-span-2">
+            <div className="relative z-10 flex items-start justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-on-primary/80">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 md:text-xs">
                   {loyalty?.level ?? "Member"}
                 </p>
-                <h2 className="mt-1 text-headline-md leading-tight uppercase">{displayName}</h2>
+                <h2 className="text-headline-md uppercase leading-tight text-on-primary md:text-headline-lg">
+                  {displayName}
+                </h2>
               </div>
-              <span className="font-display text-[18px] font-extrabold text-secondary-fixed">
-                X-SHA
-              </span>
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white p-2 md:h-16 md:w-16">
+                <img
+                  src={IMG.qrLarge}
+                  alt="Kode QR kartu member digital X-SHA"
+                  className="h-full w-full object-contain"
+                />
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-shrink-0 rounded-xl bg-white p-3 shadow-lg">
-                <img src={IMG.qrMobile} alt="Kode QR member X-SHA" className="h-24 w-24" />
-              </div>
-              <div className="flex flex-grow flex-col items-end">
-                <p className="text-[12px] text-on-primary/70">Member ID</p>
-                <p className="font-display text-[20px] font-extrabold tracking-widest">
+            <div className="relative z-10 flex items-end justify-between">
+              <div className="flex flex-col gap-1">
+                <p className="text-[10px] opacity-70">Member ID</p>
+                <p className="font-mono text-sm tracking-widest opacity-90 md:text-base">
                   {user?.customer?.id}
                 </p>
               </div>
+              <Icon name="contactless" className="text-3xl opacity-50 md:text-4xl" />
             </div>
+            <div className="pointer-events-none absolute -bottom-4 -right-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
           </div>
-          <div className="absolute -bottom-4 -right-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
-        </section>
 
-        <section className="grid grid-cols-1 gap-4">
-          <div className="flex flex-col items-center rounded-xl glass-panel p-4 text-center">
-            <Icon name="stars" filled className="mb-2 text-primary" />
-            <p className="text-[12px] text-on-surface-variant">Poin Saya</p>
-            <p className="mt-1 font-display text-price-display text-primary">
-              {loyalty?.points ?? 0}
+          <div className="flex flex-col items-center justify-center gap-2 rounded-[24px] border-primary/20 glass-panel p-6 text-center md:p-8">
+            <Icon name="stars" filled className="mb-2 text-4xl text-primary md:text-5xl" />
+            <p className="text-label-md text-on-surface-variant">Saldo Poin Anda</p>
+            <p className="font-display text-display-lg text-primary">
+              <AnimatedNumber value={loyalty?.points ?? 0} />
             </p>
+            {!loyalty?.loyaltyProgram && (
+              <p className="mt-2 rounded-full bg-surface-container px-4 py-1.5 text-xs text-on-surface-variant">
+                Belum terdaftar di program loyalitas
+              </p>
+            )}
           </div>
-        </section>
+        </div>
 
-        <section className="divide-y divide-white/30 overflow-hidden rounded-2xl glass-panel">
-          {menu.map((m) => (
-            <Link
-              key={m.label}
-              to={m.to}
-              className="flex h-[56px] items-center justify-between p-4 transition-colors active:bg-primary/5"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Icon name={m.icon} />
+        <Reveal>
+          <section className="mt-stack-lg">
+            <div className="mb-6 flex items-end justify-between">
+              <div>
+                <h2 className="text-headline-md text-on-surface">Promo Khusus Member</h2>
+                <p className="text-on-surface-variant">
+                  Penawaran spesial hanya untuk Anda minggu ini.
+                </p>
+              </div>
+              <Link to="/promo" className="font-bold text-primary hover:underline">
+                Lihat Semua
+              </Link>
+            </div>
+            {(promos?.length ?? 0) === 0 ? (
+              <p className="rounded-xl glass-panel p-6 text-center text-on-surface-variant">
+                Belum ada promo aktif saat ini.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+                {promos?.slice(0, 4).map((p) => (
+                  <Link
+                    key={p.id}
+                    to="/promo"
+                    className="group overflow-hidden rounded-2xl glass-panel transition-transform hover:scale-[1.02]"
+                  >
+                    <div className="relative aspect-square">
+                      <img
+                        src={p.image}
+                        alt={p.alt}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <span className="absolute left-2 top-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase text-on-secondary">
+                        -{p.discountPercent}%
+                      </span>
+                    </div>
+                    <div className="p-3">
+                      <h3 className="mb-1 line-clamp-2 text-[13px] font-semibold leading-tight">
+                        {p.name}
+                      </h3>
+                      <span className="font-display text-[14px] font-bold text-primary">
+                        {formatIDR(p.price)}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        </Reveal>
+
+        <Reveal>
+          <section className="mt-stack-lg">
+            <h2 className="mb-6 text-headline-md text-on-surface">Riwayat Transaksi</h2>
+            {(orders?.length ?? 0) === 0 ? (
+              <p className="rounded-[24px] glass-panel p-6 text-center text-on-surface-variant">
+                Belum ada transaksi.
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-[24px] glass-panel">
+                {/* Table on md+, stacked cards on mobile — a <table> forces
+                  horizontal scroll on narrow screens which is awkward here. */}
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full text-left">
+                    <thead className="bg-primary/5">
+                      <tr>
+                        <th className="px-6 py-4 text-label-md text-on-surface-variant">Tanggal</th>
+                        <th className="px-6 py-4 text-label-md text-on-surface-variant">
+                          No. Pesanan
+                        </th>
+                        <th className="px-6 py-4 text-right text-label-md text-on-surface-variant">
+                          Total
+                        </th>
+                        <th className="px-6 py-4 text-center text-label-md text-on-surface-variant">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/20">
+                      {orders?.map((t) => (
+                        <tr key={t.id} className="transition-colors hover:bg-white/10">
+                          <td className="whitespace-nowrap px-6 py-4 text-sm">{t.date}</td>
+                          <td className="px-6 py-4 text-sm font-semibold">{t.id}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-right font-display text-sm font-extrabold">
+                            {formatIDR(t.total)}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="rounded-full bg-success-container px-3 py-1 text-[10px] font-bold uppercase text-success">
+                              {t.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <span className="text-label-md text-on-surface">{m.label}</span>
+                <div className="divide-y divide-white/20 md:hidden">
+                  {orders?.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="text-sm font-semibold">{t.id}</p>
+                        <p className="text-xs text-on-surface-variant">{t.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-display text-sm font-extrabold">{formatIDR(t.total)}</p>
+                        <span className="rounded-full bg-success-container px-2 py-0.5 text-[10px] font-bold uppercase text-success">
+                          {t.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <Icon name="chevron_right" className="text-[20px] text-on-surface-variant" />
-            </Link>
-          ))}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex h-[56px] w-full items-center justify-between p-4 text-left transition-colors active:bg-error/5"
+            )}
+          </section>
+        </Reveal>
+
+        <div className="mt-stack-lg grid grid-cols-1 gap-6 md:grid-cols-2">
+          <a
+            href={`https://wa.me/${settings.whatsappNumber}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 rounded-xl border-primary/10 glass-panel p-6 transition-colors hover:bg-white/40"
           >
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-error-container/50 text-error">
-                <Icon name="logout" />
-              </div>
-              <span className="text-label-md text-error">Keluar</span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Icon name="help_outline" />
             </div>
-          </button>
-        </section>
-
-        <section className="flex items-center gap-4 rounded-2xl glass-panel p-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary">
-            <Icon name="storefront" />
-          </div>
-          <div>
-            <h3 className="text-label-md text-on-surface">16+ Outlets Regional</h3>
-            <p className="text-[12px] leading-tight text-on-surface-variant">
-              Melayani Anda di Tasikmalaya &amp; sekitarnya sejak 2006.
-            </p>
-          </div>
-        </section>
-      </main>
-
-      <nav className="fixed bottom-0 z-50 grid h-20 w-full grid-cols-4 items-center bg-white/60 px-4 backdrop-blur-xl">
-        <Link
-          to="/"
-          className="flex flex-col items-center gap-1 text-on-surface-variant transition-colors"
-        >
-          <Icon name="home" />
-          <span className="text-[10px] font-semibold">Beranda</span>
-        </Link>
-        <Link to="/katalog" className="flex flex-col items-center gap-1 text-on-surface-variant">
-          <Icon name="grid_view" />
-          <span className="text-[10px] font-semibold">Katalog</span>
-        </Link>
-        <Link to="/member" className="flex flex-col items-center gap-1 text-on-surface-variant">
-          <Icon name="receipt" />
-          <span className="text-[10px] font-semibold">Pesanan</span>
-        </Link>
-        <span className="flex flex-col items-center gap-1 text-primary">
-          <Icon name="person" filled />
-          <span className="text-[10px] font-bold">Akun</span>
-        </span>
-      </nav>
-    </div>
+            <div>
+              <p className="font-bold text-on-surface">Butuh Bantuan?</p>
+              <p className="text-sm text-on-surface-variant">
+                Hubungi Customer Service kami via WhatsApp.
+              </p>
+            </div>
+          </a>
+          <Link
+            to="/kontak"
+            className="flex items-center gap-4 rounded-xl border-primary/10 glass-panel p-6 transition-colors hover:bg-white/40"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/10 text-secondary">
+              <Icon name="map" />
+            </div>
+            <div>
+              <p className="font-bold text-on-surface">16+ Outlets</p>
+              <p className="text-sm text-on-surface-variant">
+                Cari toko X-SHA terdekat di kota Anda.
+              </p>
+            </div>
+          </Link>
+        </div>
+      </div>
+    </SiteLayout>
   );
 }

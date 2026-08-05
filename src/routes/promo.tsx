@@ -1,13 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/site-layout";
 import { Icon } from "@/components/icon";
+import { Reveal } from "@/components/reveal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/components/cart-context";
+import { useOutlet } from "@/components/outlet-context";
 import { formatIDR } from "@/lib/utils";
-import { getPromoProducts } from "@/lib/erpnext/products";
+import { getPromoProducts, getPromoRuleProducts } from "@/lib/erpnext/products";
+import { getSiteSettings } from "@/lib/erpnext/site-settings";
+import { mockSiteSettings } from "@/lib/erpnext/mock-data";
 
 export const Route = createFileRoute("/promo")({
+  validateSearch: (search: Record<string, unknown>): { rule?: string } =>
+    typeof search.rule === "string" ? { rule: search.rule } : {},
   head: () => ({
     meta: [
       { title: "Promo Spesial | X-SHA Tasikmalaya" },
@@ -28,28 +34,57 @@ export const Route = createFileRoute("/promo")({
 
 function Promo() {
   const { add } = useCart();
-  const { data: deals, isLoading } = useQuery({
-    queryKey: ["promo-products"],
-    queryFn: () => getPromoProducts(),
+  const { selectedOutlet } = useOutlet();
+  const { rule } = Route.useSearch();
+  const warehouse = selectedOutlet?.warehouse ?? undefined;
+
+  const allDeals = useQuery({
+    queryKey: ["promo-products", warehouse],
+    queryFn: () => getPromoProducts({ data: { warehouse } }),
+    enabled: !rule,
   });
 
-  const featured = deals?.[0];
+  const ruleDeals = useQuery({
+    queryKey: ["promo-rule-products", rule, warehouse],
+    queryFn: () => getPromoRuleProducts({ data: { ruleId: rule!, warehouse } }),
+    enabled: Boolean(rule),
+  });
+
+  const isLoading = rule ? ruleDeals.isLoading : allDeals.isLoading;
+  const deals = rule ? ruleDeals.data?.products : allDeals.data;
+  const featured = !rule ? deals?.[0] : undefined;
+
+  const { data: settingsData } = useQuery({
+    queryKey: ["site-settings"],
+    queryFn: () => getSiteSettings(),
+    staleTime: 5 * 60_000,
+  });
+  const settings = settingsData ?? mockSiteSettings;
 
   return (
     <SiteLayout>
       <div className="mx-auto max-w-container-max px-gutter pb-stack-lg">
         <header className="mb-stack-lg">
-          <div className="mb-stack-sm inline-flex items-center rounded-full border border-primary/20 glass-panel px-4 py-1.5">
-            <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-secondary" />
-            <span className="text-label-md text-primary">Promo Minggu Ini</span>
-          </div>
+          {rule && (
+            <Link
+              to="/promo"
+              className="mb-4 inline-block text-sm font-bold text-primary hover:underline"
+            >
+              ← Semua Promo
+            </Link>
+          )}
           <h1 className="font-display text-headline-lg-mobile md:text-display-lg">
-            Penawaran <span className="gradient-text">Terbaik</span> Untuk Anda
+            {settings.promoPageHeading}
           </h1>
           <p className="mt-2 max-w-2xl text-body-lg text-on-surface-variant">
-            Harga spesial berlaku terbatas di seluruh outlet X-SHA dan pemesanan online via
-            WhatsApp.
+            {settings.promoPageSubtext}
           </p>
+          {selectedOutlet && (
+            <p className="mt-2 flex items-center gap-2 text-body-sm font-bold text-primary">
+              <Icon name="storefront" className="text-[16px]" />
+              Menampilkan promo yang stoknya tersedia di {selectedOutlet.name}
+            </p>
+          )}
         </header>
 
         {featured && (
@@ -100,75 +135,81 @@ function Promo() {
           </section>
         )}
 
-        <section>
-          <h2 className="mb-6 text-headline-md">Diskon Pilihan</h2>
+        <Reveal>
+          <section>
+            <h2 className="mb-6 text-headline-md">Diskon Pilihan</h2>
 
-          {isLoading && (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-72 rounded-3xl" />
+            {isLoading && (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-56 rounded-2xl" />
+                ))}
+              </div>
+            )}
+
+            {!isLoading && (deals?.length ?? 0) === 0 && (
+              <p className="py-16 text-center text-on-surface-variant">
+                {rule
+                  ? "Promo ini tidak menyasar produk spesifik."
+                  : "Belum ada promo aktif saat ini. Silakan kembali lagi minggu depan."}
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {deals?.map((p) => (
+                <article
+                  key={p.id}
+                  className="group flex flex-col overflow-hidden rounded-2xl glass-panel transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg"
+                >
+                  <div className="relative aspect-square">
+                    <img
+                      src={p.image}
+                      alt={p.alt}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <span className="absolute left-2 top-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase text-on-secondary">
+                      -{p.discountPercent}%
+                    </span>
+                  </div>
+                  <div className="flex flex-grow flex-col p-3">
+                    <p className="mb-1 truncate text-[11px] text-secondary">{p.category}</p>
+                    <h3 className="mb-2 line-clamp-2 text-[14px] font-semibold leading-tight">
+                      {p.name}
+                    </h3>
+                    <div className="mt-auto flex items-center justify-between gap-2">
+                      <div className="flex flex-col">
+                        <span className="font-display text-[14px] font-bold text-primary">
+                          {formatIDR(p.price)}
+                        </span>
+                        <span className="text-[11px] text-on-surface-variant line-through">
+                          {formatIDR(p.oldPrice)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={`Tambah ${p.name} ke keranjang`}
+                        onClick={() =>
+                          add({
+                            id: p.id,
+                            name: p.name,
+                            price: p.price,
+                            oldPrice: p.oldPrice,
+                            image: p.image,
+                            alt: p.alt,
+                          })
+                        }
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full primary-gradient text-on-primary transition-transform active:scale-90"
+                      >
+                        <Icon name="add_shopping_cart" className="text-[16px]" />
+                      </button>
+                    </div>
+                  </div>
+                </article>
               ))}
             </div>
-          )}
-
-          {!isLoading && (deals?.length ?? 0) === 0 && (
-            <p className="py-16 text-center text-on-surface-variant">
-              Belum ada promo aktif saat ini. Silakan kembali lagi minggu depan.
-            </p>
-          )}
-
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {deals?.map((p) => (
-              <article
-                key={p.id}
-                className="group flex flex-col overflow-hidden rounded-3xl glass-panel transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="relative h-48">
-                  <img
-                    src={p.image}
-                    alt={p.alt}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <span className="absolute left-4 top-4 rounded-full bg-secondary px-3 py-1 text-[10px] font-bold uppercase text-on-secondary">
-                    -{p.discountPercent}%
-                  </span>
-                </div>
-                <div className="flex flex-grow flex-col p-5">
-                  <p className="mb-1 text-label-md text-secondary">{p.category}</p>
-                  <h3 className="mb-3 text-[18px] font-semibold">{p.name}</h3>
-                  <div className="mt-auto flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="font-display text-price-display text-primary">
-                        {formatIDR(p.price)}
-                      </span>
-                      <span className="text-xs text-on-surface-variant line-through">
-                        {formatIDR(p.oldPrice)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label={`Tambah ${p.name} ke keranjang`}
-                      onClick={() =>
-                        add({
-                          id: p.id,
-                          name: p.name,
-                          price: p.price,
-                          oldPrice: p.oldPrice,
-                          image: p.image,
-                          alt: p.alt,
-                        })
-                      }
-                      className="flex h-10 w-10 items-center justify-center rounded-full primary-gradient text-on-primary transition-transform active:scale-90"
-                    >
-                      <Icon name="add_shopping_cart" />
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+          </section>
+        </Reveal>
       </div>
     </SiteLayout>
   );

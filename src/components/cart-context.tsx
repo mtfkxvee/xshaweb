@@ -1,4 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { useOutlet } from "./outlet-context";
+import { checkItemStock } from "@/lib/erpnext/products";
 
 export type CartItem = {
   id: string;
@@ -38,6 +41,7 @@ function loadStoredItems(): CartItem[] {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { selectedOutlet } = useOutlet();
   const [items, setItems] = useState<CartItem[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -70,13 +74,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return [...prev, { ...item, qty: 1 }];
         });
         setOpen(true);
+
+        // If an outlet is picked globally, warn (but don't block) when the
+        // item isn't actually in stock there — the shopper finds out now
+        // instead of after checkout.
+        if (selectedOutlet?.warehouse) {
+          checkItemStock({ data: { itemCode: item.id, warehouse: selectedOutlet.warehouse } })
+            .then((inStock) => {
+              if (!inStock) {
+                toast.warning(
+                  `${item.name} kemungkinan tidak tersedia di outlet ${selectedOutlet.name}. Admin akan konfirmasi ketersediaannya.`,
+                );
+              }
+            })
+            .catch(() => {
+              // Silently ignore — this is an advisory check, not a hard gate.
+            });
+        }
       },
       setQty: (id, qty) =>
         setItems((prev) => prev.map((p) => (p.id === id ? { ...p, qty: Math.max(1, qty) } : p))),
       remove: (id) => setItems((prev) => prev.filter((p) => p.id !== id)),
       clear: () => setItems([]),
     };
-  }, [items, open]);
+  }, [items, open, selectedOutlet]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

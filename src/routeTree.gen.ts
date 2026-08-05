@@ -11,11 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AkunRouteImport } from './routes/akun'
+import { Route as BlogRouteImport } from './routes/blog'
 import { Route as KatalogRouteImport } from './routes/katalog'
+import { Route as KontakRouteImport } from './routes/kontak'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MemberRouteImport } from './routes/member'
+import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as PromoRouteImport } from './routes/promo'
 import { Route as TentangRouteImport } from './routes/tentang'
+import { Route as BlogPostIdRouteImport } from './routes/blog.$postId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -27,9 +31,19 @@ const AkunRoute = AkunRouteImport.update({
   path: '/akun',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlogRoute = BlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KatalogRoute = KatalogRouteImport.update({
   id: '/katalog',
   path: '/katalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KontakRoute = KontakRouteImport.update({
+  id: '/kontak',
+  path: '/kontak',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -42,6 +56,11 @@ const MemberRoute = MemberRouteImport.update({
   path: '/member',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfilRoute = ProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PromoRoute = PromoRouteImport.update({
   id: '/promo',
   path: '/promo',
@@ -52,58 +71,103 @@ const TentangRoute = TentangRouteImport.update({
   path: '/tentang',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlogPostIdRoute = BlogPostIdRouteImport.update({
+  id: '/$postId',
+  path: '/$postId',
+  getParentRoute: () => BlogRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
+  '/blog': typeof BlogRouteWithChildren
   '/katalog': typeof KatalogRoute
+  '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
   '/member': typeof MemberRoute
+  '/profil': typeof ProfilRoute
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
+  '/blog/$postId': typeof BlogPostIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
+  '/blog': typeof BlogRouteWithChildren
   '/katalog': typeof KatalogRoute
+  '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
   '/member': typeof MemberRoute
+  '/profil': typeof ProfilRoute
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
+  '/blog/$postId': typeof BlogPostIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
+  '/blog': typeof BlogRouteWithChildren
   '/katalog': typeof KatalogRoute
+  '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
   '/member': typeof MemberRoute
+  '/profil': typeof ProfilRoute
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
+  '/blog/$postId': typeof BlogPostIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/akun' | '/katalog' | '/login' | '/member' | '/promo' | '/tentang'
+    | '/'
+    | '/akun'
+    | '/blog'
+    | '/katalog'
+    | '/kontak'
+    | '/login'
+    | '/member'
+    | '/profil'
+    | '/promo'
+    | '/tentang'
+    | '/blog/$postId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/akun' | '/katalog' | '/login' | '/member' | '/promo' | '/tentang'
+  to:
+    | '/'
+    | '/akun'
+    | '/blog'
+    | '/katalog'
+    | '/kontak'
+    | '/login'
+    | '/member'
+    | '/profil'
+    | '/promo'
+    | '/tentang'
+    | '/blog/$postId'
   id:
     | '__root__'
     | '/'
     | '/akun'
+    | '/blog'
     | '/katalog'
+    | '/kontak'
     | '/login'
     | '/member'
+    | '/profil'
     | '/promo'
     | '/tentang'
+    | '/blog/$postId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AkunRoute: typeof AkunRoute
+  BlogRoute: typeof BlogRouteWithChildren
   KatalogRoute: typeof KatalogRoute
+  KontakRoute: typeof KontakRoute
   LoginRoute: typeof LoginRoute
   MemberRoute: typeof MemberRoute
+  ProfilRoute: typeof ProfilRoute
   PromoRoute: typeof PromoRoute
   TentangRoute: typeof TentangRoute
 }
@@ -124,11 +188,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AkunRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blog': {
+      id: '/blog'
+      path: '/blog'
+      fullPath: '/blog'
+      preLoaderRoute: typeof BlogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/katalog': {
       id: '/katalog'
       path: '/katalog'
       fullPath: '/katalog'
       preLoaderRoute: typeof KatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kontak': {
+      id: '/kontak'
+      path: '/kontak'
+      fullPath: '/kontak'
+      preLoaderRoute: typeof KontakRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -145,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profil': {
+      id: '/profil'
+      path: '/profil'
+      fullPath: '/profil'
+      preLoaderRoute: typeof ProfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/promo': {
       id: '/promo'
       path: '/promo'
@@ -159,15 +244,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TentangRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blog/$postId': {
+      id: '/blog/$postId'
+      path: '/$postId'
+      fullPath: '/blog/$postId'
+      preLoaderRoute: typeof BlogPostIdRouteImport
+      parentRoute: typeof BlogRoute
+    }
   }
 }
+
+interface BlogRouteChildren {
+  BlogPostIdRoute: typeof BlogPostIdRoute
+}
+
+const BlogRouteChildren: BlogRouteChildren = {
+  BlogPostIdRoute: BlogPostIdRoute,
+}
+
+const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AkunRoute: AkunRoute,
+  BlogRoute: BlogRouteWithChildren,
   KatalogRoute: KatalogRoute,
+  KontakRoute: KontakRoute,
   LoginRoute: LoginRoute,
   MemberRoute: MemberRoute,
+  ProfilRoute: ProfilRoute,
   PromoRoute: PromoRoute,
   TentangRoute: TentangRoute,
 }

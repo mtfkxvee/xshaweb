@@ -105,6 +105,7 @@
 
   --animate-drawer-in: drawer-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   --animate-rise: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pop: pop 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes drawer-in {
@@ -124,6 +125,17 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -195,6 +207,80 @@
   scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* Consistent hover/press feel for cards site-wide: lift + deepen shadow on
+   hover (mouse), gentle press-down on tap (touch) — used by product, promo
+   and blog cards instead of one-off transform utilities per component. */
+@utility hover-lift {
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-glass-lg);
+  }
+  &:active {
+    transform: translateY(-1px) scale(0.98);
+  }
+}
+
+/* Animated underline for the active/hovered top-nav link, replacing a
+   static border so switching pages feels connected rather than a hard cut. */
+@utility nav-underline {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 100%;
+    bottom: -4px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-primary);
+    transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  &:hover::after {
+    right: 0;
+  }
+}
+
+@utility nav-underline-active {
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -4px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-primary);
+  }
+}
+
+/* Cross-fade between route navigations via the native View Transitions API.
+   Feature-detected in router.tsx; browsers without support just get an
+   ordinary instant swap, so this is additive, never a hard dependency. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: page-fade-out 0.15s ease-out both;
+  }
+  ::view-transition-new(root) {
+    animation: page-fade-in 0.25s ease-out both;
+  }
+}
+
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }
 

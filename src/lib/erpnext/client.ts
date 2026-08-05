@@ -65,3 +65,10 @@ export function jsonFields(fields: string[]): string {
 export function jsonFilters(filters: unknown[]): string {
   return JSON.stringify(filters);
 }
+
+// ERPNext's dates are entered in the business's own timezone (Asia/Jakarta,
+// UTC+7), not UTC — using `new Date().toISOString()` on the server would
+// compare against the wrong day for several hours around midnight WIB.
+export function erpToday(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+}

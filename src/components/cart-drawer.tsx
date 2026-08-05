@@ -1,16 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Icon } from "./icon";
 import { useCart } from "./cart-context";
+import { useOutlet } from "./outlet-context";
 import { useAuth } from "@/hooks/use-auth";
 import { formatIDR } from "@/lib/utils";
-import { getOutlets } from "@/lib/erpnext/outlets";
+import { DEFAULT_WHATSAPP_NUMBER } from "@/lib/erpnext/outlets";
 import { createOrder } from "@/lib/erpnext/orders";
-
-const WHATSAPP_NUMBER = "6288299633581";
 
 const schema = z.object({
   name: z.string().min(1, "Nama wajib diisi"),
@@ -22,31 +21,46 @@ type FormValues = z.infer<typeof schema>;
 
 export function CartDrawer() {
   const { items, open, closeCart, total, setQty, remove, clear } = useCart();
-  const { isLoggedIn } = useAuth();
-
-  const { data: outlets } = useQuery({
-    queryKey: ["outlets"],
-    queryFn: () => getOutlets(),
-    staleTime: 5 * 60_000,
-  });
+  const { isLoggedIn, user } = useAuth();
+  const { outlets, selectedOutlet } = useOutlet();
 
   const {
     register,
     handleSubmit,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", outlet: "", note: "" },
   });
 
+  // Pre-fill from the logged-in customer once their data loads, without
+  // clobbering anything the person already typed (e.g. ordering for someone
+  // else).
+  useEffect(() => {
+    const name = user?.customer?.name;
+    if (name && !getValues("name")) {
+      setValue("name", name);
+    }
+  }, [user, getValues, setValue]);
+
+  // Pre-fill from the outlet already picked globally (top-nav filter),
+  // without clobbering a manual change made inside the drawer itself.
+  useEffect(() => {
+    if (selectedOutlet && !getValues("outlet")) {
+      setValue("outlet", selectedOutlet.code);
+    }
+  }, [selectedOutlet, getValues, setValue]);
+
   if (!open) return null;
 
-  const buildWaMessage = (v: FormValues) =>
+  const buildWaMessage = (v: FormValues, outletName: string) =>
     encodeURIComponent(
       [
         `Halo X-SHA, saya ${v.name} ingin memesan:`,
         ...items.map((i) => `- ${i.name} x${i.qty} (${formatIDR(i.price * i.qty)})`),
-        `Outlet: ${v.outlet}`,
+        `Outlet: ${outletName}`,
         v.note ? `Catatan: ${v.note}` : "",
         `Estimasi total: ${formatIDR(total)}`,
       ]
@@ -55,6 +69,10 @@ export function CartDrawer() {
     );
 
   const onSubmit = async (v: FormValues) => {
+    const selectedOutlet = outlets?.find((o) => o.code === v.outlet);
+    const outletName = selectedOutlet?.name ?? v.outlet;
+    const waNumber = selectedOutlet?.whatsapp ?? DEFAULT_WHATSAPP_NUMBER;
+
     if (isLoggedIn) {
       const result = await createOrder({
         data: {
@@ -64,7 +82,7 @@ export function CartDrawer() {
             qty: i.qty,
             rate: i.price,
           })),
-          note: v.note ? `Outlet: ${v.outlet}. ${v.note}` : `Outlet: ${v.outlet}`,
+          note: v.note ? `Outlet: ${outletName}. ${v.note}` : `Outlet: ${outletName}`,
         },
       });
       if (result.ok) {
@@ -75,7 +93,7 @@ export function CartDrawer() {
     }
 
     window.open(
-      `https://wa.me/${WHATSAPP_NUMBER}?text=${buildWaMessage(v)}`,
+      `https://wa.me/${waNumber}?text=${buildWaMessage(v, outletName)}`,
       "_blank",
       "noopener,noreferrer",
     );
@@ -212,7 +230,7 @@ export function CartDrawer() {
                   >
                     <option value="">Pilih outlet</option>
                     {outlets?.map((o) => (
-                      <option key={o.code} value={o.name}>
+                      <option key={o.code} value={o.code}>
                         {o.name}
                       </option>
                     ))}

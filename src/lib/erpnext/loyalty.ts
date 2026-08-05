@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
-import { erpRequest, jsonFields, jsonFilters } from "./client";
+import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
 import type { LoyaltyStatus } from "./types";
 
@@ -20,11 +20,12 @@ export const getMyLoyaltyStatus = createServerFn({ method: "GET" }).handler(
       return { points: 0, level: auth.customer.group, loyaltyProgram: null };
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = erpToday();
+    // Reads with the admin API key, not `sid` — a portal customer's own
+    // role typically has no read permission on Loyalty Point Entry.
     const res = await erpRequest<{
       data: { loyalty_points: number; expiry_date: string | null }[];
     }>("/api/resource/Loyalty Point Entry", {
-      sid,
       params: {
         fields: jsonFields(["loyalty_points", "expiry_date"]),
         filters: jsonFilters([["customer", "=", auth.customer.id]]),

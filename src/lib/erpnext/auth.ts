@@ -1,5 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
+import {
+  deleteCookie,
+  getCookie,
+  getRequestProtocol,
+  setCookie,
+  setResponseHeader,
+} from "@tanstack/react-start/server";
 import { erpRequest, jsonFields, jsonFilters } from "./client";
 import { getErpnextConfig, isErpnextConfigured } from "./config";
 import type { CurrentUser } from "./types";
@@ -28,9 +34,12 @@ export const loginCustomer = createServerFn({ method: "POST" })
       return { ok: false, message: "Gagal memulai sesi ERPNext." };
     }
 
+    // `secure: true` unconditionally would make browsers silently drop this
+    // cookie on any non-HTTPS origin other than localhost (e.g. previewing
+    // over a LAN IP), so it only follows the actual request protocol.
     setCookie(SESSION_COOKIE, sidMatch[1], {
       httpOnly: true,
-      secure: true,
+      secure: getRequestProtocol() === "https",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
@@ -55,6 +64,12 @@ export const logoutCustomer = createServerFn({ method: "POST" }).handler(
 
 export const getCurrentCustomer = createServerFn({ method: "GET" }).handler(
   async (): Promise<CurrentUser | null> => {
+    // This is a GET server function whose URL never changes (no arguments),
+    // so without an explicit no-store the browser (and any intermediary)
+    // happily serves a cached response from before login/logout forever —
+    // the client then never learns the session state actually changed.
+    setResponseHeader("Cache-Control", "no-store");
+
     const sid = getCookie(SESSION_COOKIE);
     if (!sid || !isErpnextConfigured()) return null;
 
@@ -67,25 +82,13 @@ export const getCurrentCustomer = createServerFn({ method: "GET" }).handler(
       if (!email || email === "Guest") return null;
 
       // A logged-in Frappe user maps to a Customer through the "Portal User"
-      // child table (Customer.portal_users) rather than a direct link field.
-      const portalRes = await erpRequest<{ data: { parent: string }[] }>(
-        "/api/resource/Portal User",
-        {
-          sid,
-          params: {
-            fields: jsonFields(["parent"]),
-            filters: jsonFilters([
-              ["user", "=", email],
-              ["parenttype", "=", "Customer"],
-            ]),
-            limit_page_length: "1",
-          },
-        },
-      );
-
-      const customerId = portalRes.data[0]?.parent;
-      if (!customerId) return { email, customer: null };
-
+      // child table (Customer.portal_users). Querying "Portal User" as its
+      // own resource always 403s (Frappe's check_parent_permission rejects
+      // child-table list queries that aren't scoped to one known parent),
+      // so instead we filter Customer directly using Frappe's child-table
+      // filter form `[childDoctype, fieldname, operator, value]`, which
+      // performs the join server-side and is the only combination that
+      // actually returns a result via the REST API.
       const customerRes = await erpRequest<{
         data: {
           name: string;
@@ -94,9 +97,9 @@ export const getCurrentCustomer = createServerFn({ method: "GET" }).handler(
           mobile_no: string | null;
           email_id: string | null;
           loyalty_program: string | null;
-        };
-      }>(`/api/resource/Customer/${encodeURIComponent(customerId)}`, {
-        sid,
+          custom_tanggal_lahir: string | null;
+        }[];
+      }>("/api/resource/Customer", {
         params: {
           fields: jsonFields([
             "name",
@@ -105,11 +108,16 @@ export const getCurrentCustomer = createServerFn({ method: "GET" }).handler(
             "mobile_no",
             "email_id",
             "loyalty_program",
+            "custom_tanggal_lahir",
           ]),
+          filters: jsonFilters([["Portal User", "user", "=", email]]),
+          limit_page_length: "1",
         },
       });
 
-      const c = customerRes.data;
+      const c = customerRes.data[0];
+      if (!c) return { email, customer: null };
+
       return {
         email,
         customer: {
@@ -119,6 +127,7 @@ export const getCurrentCustomer = createServerFn({ method: "GET" }).handler(
           mobile: c.mobile_no,
           email: c.email_id,
           loyaltyProgram: c.loyalty_program,
+          birthDate: c.custom_tanggal_lahir,
         },
       };
     } catch {

@@ -1,14 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SiteLayout } from "@/components/site-layout";
 import { Icon } from "@/components/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/components/cart-context";
+import { useOutlet } from "@/components/outlet-context";
 import { formatIDR } from "@/lib/utils";
-import { getItemGroups, getProducts, type ProductQuery } from "@/lib/erpnext/products";
+import { getItemGroupChildren, getProducts, type ProductQuery } from "@/lib/erpnext/products";
+import { getSiteSettings } from "@/lib/erpnext/site-settings";
+import { mockSiteSettings } from "@/lib/erpnext/mock-data";
 
 export const Route = createFileRoute("/katalog")({
+  validateSearch: (search: Record<string, unknown>): { q?: string } =>
+    typeof search.q === "string" ? { q: search.q } : {},
   head: () => ({
     meta: [
       { title: "Katalog Produk | X-SHA Tasikmalaya" },
@@ -20,7 +25,8 @@ export const Route = createFileRoute("/katalog")({
       { property: "og:title", content: "Katalog Produk | X-SHA Tasikmalaya" },
       {
         property: "og:description",
-        content: "Filter kategori, cari produk, dan pesan langsung lewat WhatsApp.",
+        content:
+          "Filter departemen, kategori, dan sub kategori, cari produk, dan pesan langsung lewat WhatsApp.",
       },
     ],
   }),
@@ -31,27 +37,74 @@ const PAGE_SIZE = 12;
 
 function Katalog() {
   const { add } = useCart();
-  const [query, setQuery] = useState("");
-  const [itemGroup, setItemGroup] = useState("");
+  const { selectedOutlet } = useOutlet();
+  const { q } = Route.useSearch();
+  const [query, setQuery] = useState(q ?? "");
+  const [department, setDepartment] = useState("");
+  const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
   const [sort, setSort] = useState<ProductQuery["sort"]>("relevance");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
 
-  const { data: itemGroups } = useQuery({
-    queryKey: ["item-groups"],
-    queryFn: () => getItemGroups(),
+  const { data: settingsData } = useQuery({
+    queryKey: ["site-settings"],
+    queryFn: () => getSiteSettings(),
+    staleTime: 5 * 60_000,
+  });
+  const settings = settingsData ?? mockSiteSettings;
+
+  // The outlet filter itself lives in the top-nav bar (applies to katalog
+  // and promo alike) — this page just reacts to it and resets pagination.
+  useEffect(() => {
+    setPage(1);
+  }, [selectedOutlet]);
+
+  // Keep the search box in sync when arriving via the top-nav search (a new
+  // /katalog?q=... navigation) rather than only reading it once on mount.
+  useEffect(() => {
+    if (q !== undefined) setQuery(q);
+  }, [q]);
+
+  const { data: departments } = useQuery({
+    queryKey: ["item-groups", "root"],
+    queryFn: () => getItemGroupChildren({ data: undefined }),
     staleTime: 10 * 60_000,
   });
+
+  const { data: categories } = useQuery({
+    queryKey: ["item-groups", department],
+    queryFn: () => getItemGroupChildren({ data: { parent: department } }),
+    enabled: department !== "",
+    staleTime: 10 * 60_000,
+  });
+
+  const { data: subCategories } = useQuery({
+    queryKey: ["item-groups", category],
+    queryFn: () => getItemGroupChildren({ data: { parent: category } }),
+    enabled: category !== "",
+    staleTime: 10 * 60_000,
+  });
+
+  // Hierarchy dictates which node currently governs the product filter: the
+  // deepest one picked wins, and its own `isGroup` decides how getProducts
+  // matches it (exact leaf vs. "descendants of" branch).
+  const selected =
+    subCategories?.find((g) => g.name === subCategory) ??
+    categories?.find((g) => g.name === category) ??
+    departments?.find((g) => g.name === department);
 
   const productQuery: ProductQuery = useMemo(
     () => ({
       search: query || undefined,
-      itemGroup: itemGroup || undefined,
+      itemGroup: selected?.name,
+      itemGroupIsGroup: selected?.isGroup,
+      warehouse: selectedOutlet?.warehouse ?? undefined,
       sort,
       page,
       pageSize: PAGE_SIZE,
     }),
-    [query, itemGroup, sort, page],
+    [query, selected, selectedOutlet, sort, page],
   );
 
   const { data, isLoading } = useQuery({
@@ -65,7 +118,9 @@ function Katalog() {
 
   const reset = () => {
     setQuery("");
-    setItemGroup("");
+    setDepartment("");
+    setCategory("");
+    setSubCategory("");
     setSort("relevance");
     setPage(1);
   };
@@ -76,8 +131,8 @@ function Katalog() {
         <div className="flex flex-col gap-gutter md:flex-row">
           <aside className="flex h-fit w-full flex-col gap-stack-sm rounded-xl glass-panel p-stack-md md:w-64">
             <div className="mb-4">
-              <h1 className="text-headline-md text-primary">Katalog Filter</h1>
-              <p className="text-body-md text-on-surface-variant">Temukan kebutuhan Anda</p>
+              <h1 className="text-headline-md text-primary">{settings.katalogPageHeading}</h1>
+              <p className="text-body-md text-on-surface-variant">{settings.katalogPageSubtext}</p>
             </div>
 
             <div className="relative mb-4">
@@ -103,20 +158,69 @@ function Katalog() {
 
             <div className="mb-6 flex flex-col gap-3">
               <div>
+                <label className="mb-1 block text-label-md text-primary" htmlFor="departemen">
+                  Departemen
+                </label>
+                <select
+                  id="departemen"
+                  value={department}
+                  onChange={(e) => {
+                    setDepartment(e.target.value);
+                    setCategory("");
+                    setSubCategory("");
+                    setPage(1);
+                  }}
+                  className="w-full rounded-lg border border-white/30 bg-white/50 px-3 py-2 text-body-md outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Semua Departemen</option>
+                  {departments?.map((g) => (
+                    <option key={g.name} value={g.name}>
+                      {g.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="mb-1 block text-label-md text-primary" htmlFor="kategori">
                   Kategori
                 </label>
                 <select
                   id="kategori"
-                  value={itemGroup}
+                  value={category}
+                  disabled={!department}
                   onChange={(e) => {
-                    setItemGroup(e.target.value);
+                    setCategory(e.target.value);
+                    setSubCategory("");
                     setPage(1);
                   }}
-                  className="w-full rounded-lg border border-white/30 bg-white/50 px-3 py-2 text-body-md outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full rounded-lg border border-white/30 bg-white/50 px-3 py-2 text-body-md outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Semua Kategori</option>
-                  {itemGroups?.map((g) => (
+                  {categories?.map((g) => (
+                    <option key={g.name} value={g.name}>
+                      {g.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-label-md text-primary" htmlFor="sub-kategori">
+                  Sub Kategori
+                </label>
+                <select
+                  id="sub-kategori"
+                  value={subCategory}
+                  disabled={!category}
+                  onChange={(e) => {
+                    setSubCategory(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full rounded-lg border border-white/30 bg-white/50 px-3 py-2 text-body-md outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Semua Sub Kategori</option>
+                  {subCategories?.map((g) => (
                     <option key={g.name} value={g.name}>
                       {g.label}
                     </option>
@@ -160,10 +264,20 @@ function Katalog() {
           </aside>
 
           <div className="flex-grow">
-            <div className="mb-stack-md flex items-center justify-between rounded-xl glass-panel p-4">
-              <div className="text-body-md font-semibold text-on-surface-variant">
-                Menampilkan <span className="text-primary">{total}</span> Produk
-              </div>
+            <div className="mb-stack-md flex flex-col gap-3 rounded-xl glass-panel p-4 sm:flex-row sm:items-center sm:justify-between">
+              {selectedOutlet ? (
+                <p className="flex items-center gap-2 text-body-md text-on-surface-variant">
+                  <Icon name="storefront" className="text-primary" />
+                  Menampilkan stok yang tersedia di{" "}
+                  <span className="font-bold text-primary">{selectedOutlet.name}</span>
+                </p>
+              ) : (
+                <p className="flex items-center gap-2 text-body-md text-on-surface-variant">
+                  <Icon name="storefront" />
+                  Pilih outlet di bar atas untuk cek stok per lokasi
+                </p>
+              )}
+
               <div className="flex items-center gap-2 rounded-lg bg-white/20 p-1">
                 {(["grid", "list"] as const).map((v) => (
                   <button
@@ -186,15 +300,15 @@ function Katalog() {
             <div
               className={
                 view === "grid"
-                  ? "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
-                  : "flex flex-col gap-4"
+                  ? "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+                  : "flex flex-col gap-3"
               }
             >
               {isLoading &&
                 Array.from({ length: 6 }).map((_, i) => (
                   <Skeleton
                     key={i}
-                    className={view === "grid" ? "aspect-square rounded-3xl" : "h-32 rounded-3xl"}
+                    className={view === "grid" ? "aspect-square rounded-2xl" : "h-24 rounded-2xl"}
                   />
                 ))}
 
@@ -202,13 +316,13 @@ function Katalog() {
                 products.map((p) => (
                   <article
                     key={p.id}
-                    className={`group rounded-3xl glass-panel p-4 transition-all duration-300 hover:-translate-y-1 ${
-                      view === "grid" ? "flex flex-col" : "flex gap-6"
+                    className={`group rounded-2xl glass-panel p-3 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg ${
+                      view === "grid" ? "flex flex-col" : "flex gap-4"
                     }`}
                   >
                     <div
-                      className={`overflow-hidden rounded-2xl product-card-image ${
-                        view === "grid" ? "mb-4 aspect-square" : "h-32 w-32 shrink-0"
+                      className={`overflow-hidden rounded-xl product-card-image ${
+                        view === "grid" ? "mb-3 aspect-square" : "h-24 w-24 shrink-0"
                       }`}
                     >
                       <img
@@ -219,10 +333,12 @@ function Katalog() {
                       />
                     </div>
                     <div className="flex flex-grow flex-col">
-                      <p className="mb-1 text-label-md text-secondary">{p.category}</p>
-                      <h2 className="mb-2 text-headline-md text-on-surface">{p.name}</h2>
-                      <div className="mt-auto flex items-center justify-between">
-                        <span className="font-display text-price-display text-primary">
+                      <p className="mb-1 truncate text-[11px] text-secondary">{p.category}</p>
+                      <h2 className="mb-2 line-clamp-2 text-[14px] font-semibold leading-tight text-on-surface">
+                        {p.name}
+                      </h2>
+                      <div className="mt-auto flex items-center justify-between gap-2">
+                        <span className="font-display text-[14px] font-bold text-primary">
                           {formatIDR(p.price)}
                         </span>
                         <button
@@ -237,9 +353,9 @@ function Katalog() {
                               alt: p.alt,
                             })
                           }
-                          className="flex h-10 w-10 items-center justify-center rounded-full primary-gradient text-on-primary transition-transform active:scale-90"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full primary-gradient text-on-primary transition-transform active:scale-90"
                         >
-                          <Icon name="add_shopping_cart" />
+                          <Icon name="add_shopping_cart" className="text-[16px]" />
                         </button>
                       </div>
                     </div>

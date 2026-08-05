@@ -1,0 +1,94 @@
+import { createServerFn } from "@tanstack/react-start";
+import { erpRequest, jsonFields } from "./client";
+import { getErpnextConfig, isErpnextConfigured } from "./config";
+
+export type BlogPost = {
+  id: string;
+  title: string;
+  intro: string;
+  image: string;
+  category: string | null;
+  publishedOn: string | null;
+};
+
+export type BlogPostDetail = BlogPost & {
+  contentHtml: string;
+};
+
+const PLACEHOLDER_IMAGE = "/product-placeholder.svg";
+
+type ErpBlogPost = {
+  name: string;
+  title: string;
+  blog_intro: string | null;
+  meta_image: string | null;
+  blog_category: string | null;
+  published_on: string | null;
+};
+
+function mapBlogPost(post: ErpBlogPost, erpBaseUrl: string): BlogPost {
+  return {
+    id: post.name,
+    title: post.title,
+    intro: post.blog_intro ?? "",
+    image: post.meta_image ? `${erpBaseUrl}${post.meta_image}` : PLACEHOLDER_IMAGE,
+    category: post.blog_category,
+    publishedOn: post.published_on,
+  };
+}
+
+export const getBlogPosts = createServerFn({ method: "GET" })
+  .validator((input: { limit?: number } | undefined) => input)
+  .handler(async ({ data }): Promise<BlogPost[]> => {
+    if (!isErpnextConfigured()) return [];
+
+    const config = getErpnextConfig()!;
+    const res = await erpRequest<{ data: ErpBlogPost[] }>("/api/resource/Blog Post", {
+      params: {
+        fields: jsonFields([
+          "name",
+          "title",
+          "blog_intro",
+          "meta_image",
+          "blog_category",
+          "published_on",
+        ]),
+        order_by: "published_on desc",
+        limit_page_length: String(data?.limit ?? 3),
+      },
+    });
+
+    return res.data.map((post) => mapBlogPost(post, config.url));
+  });
+
+export const getBlogPost = createServerFn({ method: "GET" })
+  .validator((input: { id: string }) => input)
+  .handler(async ({ data }): Promise<BlogPostDetail | null> => {
+    if (!isErpnextConfigured()) return null;
+
+    const config = getErpnextConfig()!;
+    try {
+      const res = await erpRequest<{
+        data: ErpBlogPost & { content: string | null; content_html: string | null };
+      }>(`/api/resource/Blog Post/${encodeURIComponent(data.id)}`, {
+        params: {
+          fields: jsonFields([
+            "name",
+            "title",
+            "blog_intro",
+            "meta_image",
+            "blog_category",
+            "published_on",
+            "content",
+            "content_html",
+          ]),
+        },
+      });
+      return {
+        ...mapBlogPost(res.data, config.url),
+        contentHtml: res.data.content_html ?? res.data.content ?? "",
+      };
+    } catch {
+      return null;
+    }
+  });

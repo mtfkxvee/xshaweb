@@ -29,6 +29,9 @@ package-lock.json
 # Local backup export, not project source
 xsha-app*.zip
 
+# Source asset dropped at repo root; canonical copy lives in public/xsha-logo.png
+/logo xsha.png
+
 # Environment variables (contains secrets)
 .env
 .env.*

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
-import { erpRequest, jsonFields, jsonFilters } from "./client";
+import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
 import { mockOrders } from "./mock-data";
 import type { Order, OrderLine } from "./types";
@@ -30,13 +30,18 @@ export const createOrder = createServerFn({ method: "POST" })
     if (!auth?.customer) return { ok: false, reason: "not_authenticated" };
 
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = erpToday();
 
+      // Item lookups and the Quotation write use the admin API key rather
+      // than the customer's own session — a portal customer role typically
+      // can't read Item or create Quotation records directly in ERPNext.
+      // `sid` above only established who they are; write() is still scoped
+      // to their own `auth.customer.id` below.
       const items = await Promise.all(
         data.items.map(async (line) => {
           const itemRes = await erpRequest<{ data: { stock_uom: string } }>(
             `/api/resource/Item/${encodeURIComponent(line.itemCode)}`,
-            { sid, params: { fields: jsonFields(["stock_uom"]) } },
+            { params: { fields: jsonFields(["stock_uom"]) } },
           );
           return {
             item_code: line.itemCode,
@@ -51,7 +56,6 @@ export const createOrder = createServerFn({ method: "POST" })
 
       const res = await erpRequest<{ data: { name: string } }>("/api/resource/Quotation", {
         method: "POST",
-        sid,
         body: {
           quotation_to: "Customer",
           party_name: auth.customer.id,
@@ -87,25 +91,28 @@ export const getMyOrders = createServerFn({ method: "GET" }).handler(async (): P
   const auth = await getCurrentCustomer();
   if (!auth?.customer) return [];
 
+  // "Riwayat Transaksi" shows completed purchases — those live in Sales
+  // Invoice (in-store POS/checkout), not Quotation (Quotation is only the
+  // not-yet-fulfilled cart order this site itself creates on checkout).
+  // docstatus=1 excludes drafts and cancelled invoices.
   const res = await erpRequest<{
-    data: { name: string; transaction_date: string; status: string; grand_total: number }[];
-  }>("/api/resource/Quotation", {
-    sid,
+    data: { name: string; posting_date: string; status: string; grand_total: number }[];
+  }>("/api/resource/Sales Invoice", {
     params: {
-      fields: jsonFields(["name", "transaction_date", "status", "grand_total"]),
+      fields: jsonFields(["name", "posting_date", "status", "grand_total"]),
       filters: jsonFilters([
-        ["quotation_to", "=", "Customer"],
-        ["party_name", "=", auth.customer.id],
+        ["customer", "=", auth.customer.id],
+        ["docstatus", "=", 1],
       ]),
-      order_by: "transaction_date desc",
+      order_by: "posting_date desc",
       limit_page_length: "20",
     },
   });
 
-  return res.data.map((q) => ({
-    id: q.name,
-    date: q.transaction_date,
-    status: q.status,
-    total: q.grand_total,
+  return res.data.map((inv) => ({
+    id: inv.name,
+    date: inv.posting_date,
+    status: inv.status,
+    total: inv.grand_total,
   }));
 });
