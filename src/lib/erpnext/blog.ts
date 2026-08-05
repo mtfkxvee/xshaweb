@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
-import { erpRequest, jsonFields } from "./client";
+import { erpRequest, jsonFields, jsonFilters } from "./client";
 import { getErpnextConfig, isErpnextConfigured } from "./config";
 
 const CACHE_BLOG = "public, max-age=180, stale-while-revalidate=120";
@@ -27,6 +27,7 @@ type ErpBlogPost = {
   meta_image: string | null;
   blog_category: string | null;
   published_on: string | null;
+  published: number;
 };
 
 function mapBlogPost(post: ErpBlogPost, erpBaseUrl: string): BlogPost {
@@ -58,6 +59,7 @@ export const getBlogPosts = createServerFn({ method: "GET" })
           "blog_category",
           "published_on",
         ]),
+        filters: jsonFilters([["published", "=", 1]]),
         order_by: "published_on desc",
         limit_page_length: String(data?.limit ?? 3),
       },
@@ -86,11 +88,15 @@ export const getBlogPost = createServerFn({ method: "GET" })
             "meta_image",
             "blog_category",
             "published_on",
+            "published",
             "content",
             "content_html",
           ]),
         },
       });
+      // Direct-link access to a draft (unpublished) post is refused the same
+      // way a missing post is — the shopper sees "not found", not a leak.
+      if (!res.data.published) return null;
       return {
         ...mapBlogPost(res.data, config.url),
         contentHtml: res.data.content_html ?? res.data.content ?? "",

@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/site-layout";
 import { getBlogPost } from "@/lib/erpnext/blog";
 
-export const Route = createFileRoute("/blog/$postId")({
+export const Route = createFileRoute("/blog_/$postId")({
   loader: async ({ params }) => {
     const post = await getBlogPost({ data: { id: params.postId } });
     if (!post) throw notFound();

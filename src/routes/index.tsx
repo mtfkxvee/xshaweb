@@ -23,13 +23,13 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "X-SHA | Heritage of Tasikmalaya, Modern Living" },
+      { title: "X-SHA | X-TRA ORDINARY SHOPPING AMBIENCE" },
       {
         name: "description",
         content:
           "Belanja produk kurasi halal khas Tasikmalaya: batik, tenun, kelom geulis, kopi Galunggung. 16+ outlet & 40.000+ member setia.",
       },
-      { property: "og:title", content: "X-SHA | Heritage of Tasikmalaya, Modern Living" },
+      { property: "og:title", content: "X-SHA | X-TRA ORDINARY SHOPPING AMBIENCE" },
       {
         property: "og:description",
         content:

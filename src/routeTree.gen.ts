@@ -19,7 +19,7 @@ import { Route as MemberRouteImport } from './routes/member'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as PromoRouteImport } from './routes/promo'
 import { Route as TentangRouteImport } from './routes/tentang'
-import { Route as BlogPostIdRouteImport } from './routes/blog.$postId'
+import { Route as BlogPostIdRouteImport } from './routes/blog_.$postId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -72,15 +72,15 @@ const TentangRoute = TentangRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlogPostIdRoute = BlogPostIdRouteImport.update({
-  id: '/$postId',
-  path: '/$postId',
-  getParentRoute: () => BlogRoute,
+  id: '/blog_/$postId',
+  path: '/blog/$postId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
-  '/blog': typeof BlogRouteWithChildren
+  '/blog': typeof BlogRoute
   '/katalog': typeof KatalogRoute
   '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
@@ -93,7 +93,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
-  '/blog': typeof BlogRouteWithChildren
+  '/blog': typeof BlogRoute
   '/katalog': typeof KatalogRoute
   '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
@@ -107,7 +107,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
-  '/blog': typeof BlogRouteWithChildren
+  '/blog': typeof BlogRoute
   '/katalog': typeof KatalogRoute
   '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
@@ -115,7 +115,7 @@ export interface FileRoutesById {
   '/profil': typeof ProfilRoute
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
-  '/blog/$postId': typeof BlogPostIdRoute
+  '/blog_/$postId': typeof BlogPostIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -156,13 +156,13 @@ export interface FileRouteTypes {
     | '/profil'
     | '/promo'
     | '/tentang'
-    | '/blog/$postId'
+    | '/blog_/$postId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AkunRoute: typeof AkunRoute
-  BlogRoute: typeof BlogRouteWithChildren
+  BlogRoute: typeof BlogRoute
   KatalogRoute: typeof KatalogRoute
   KontakRoute: typeof KontakRoute
   LoginRoute: typeof LoginRoute
@@ -170,6 +170,7 @@ export interface RootRouteChildren {
   ProfilRoute: typeof ProfilRoute
   PromoRoute: typeof PromoRoute
   TentangRoute: typeof TentangRoute
+  BlogPostIdRoute: typeof BlogPostIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -244,30 +245,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TentangRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/blog/$postId': {
-      id: '/blog/$postId'
-      path: '/$postId'
+    '/blog_/$postId': {
+      id: '/blog_/$postId'
+      path: '/blog/$postId'
       fullPath: '/blog/$postId'
       preLoaderRoute: typeof BlogPostIdRouteImport
-      parentRoute: typeof BlogRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface BlogRouteChildren {
-  BlogPostIdRoute: typeof BlogPostIdRoute
-}
-
-const BlogRouteChildren: BlogRouteChildren = {
-  BlogPostIdRoute: BlogPostIdRoute,
-}
-
-const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AkunRoute: AkunRoute,
-  BlogRoute: BlogRouteWithChildren,
+  BlogRoute: BlogRoute,
   KatalogRoute: KatalogRoute,
   KontakRoute: KontakRoute,
   LoginRoute: LoginRoute,
@@ -275,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfilRoute: ProfilRoute,
   PromoRoute: PromoRoute,
   TentangRoute: TentangRoute,
+  BlogPostIdRoute: BlogPostIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
