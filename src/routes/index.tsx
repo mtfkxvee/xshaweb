@@ -18,8 +18,7 @@ import { IMG } from "@/lib/catalog-data";
 import { formatIDR } from "@/lib/utils";
 import { getProducts, getPromoBanners, getPromoProducts } from "@/lib/erpnext/products";
 import { getBlogPosts } from "@/lib/erpnext/blog";
-import { getSiteSettings } from "@/lib/erpnext/site-settings";
-import { mockSiteSettings } from "@/lib/erpnext/mock-data";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,14 +46,7 @@ function Beranda() {
   const { add } = useCart();
   const [api, setApi] = useState<CarouselApi>();
 
-  // Falls back to a snapshot of the current content so the page never shows
-  // an empty/loading hero — swaps to live ERPNext content once it resolves.
-  const { data: settingsData } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => getSiteSettings(),
-    staleTime: 5 * 60_000,
-  });
-  const settings = settingsData ?? mockSiteSettings;
+  const settings = useSiteSettings();
 
   useEffect(() => {
     if (!api) return;

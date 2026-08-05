@@ -1,8 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { getErpnextConfig, isErpnextConfigured } from "./config";
 import { mockItemGroups, mockProducts } from "./mock-data";
 import type { ItemGroup, Product } from "./types";
+
+// Shared cache durations for this file's read endpoints — short because
+// price/stock can change anytime, but long enough to absorb the burst of
+// re-renders a single page interaction (filter change, pagination) causes.
+const CACHE_SHORT = "public, max-age=30, stale-while-revalidate=30"; // price/stock-sensitive
+const CACHE_MEDIUM = "public, max-age=120, stale-while-revalidate=60"; // banners, category tree
 
 const PLACEHOLDER_IMAGE = "/product-placeholder.svg";
 
@@ -152,6 +159,8 @@ async function getProductsInStock(
 export const getProducts = createServerFn({ method: "GET" })
   .validator((input: ProductQuery) => input)
   .handler(async ({ data }): Promise<ProductPage> => {
+    setResponseHeader("Cache-Control", CACHE_SHORT);
+
     if (!isErpnextConfigured()) {
       return { products: mockProducts, total: mockProducts.length };
     }
@@ -226,6 +235,8 @@ export const getProducts = createServerFn({ method: "GET" })
 export const getProductById = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }): Promise<Product | null> => {
+    setResponseHeader("Cache-Control", CACHE_SHORT);
+
     if (!isErpnextConfigured()) {
       return mockProducts.find((p) => p.id === data.id) ?? null;
     }
@@ -280,6 +291,10 @@ async function filterInStock<T extends { id: string }>(
 export const checkItemStock = createServerFn({ method: "GET" })
   .validator((input: { itemCode: string; warehouse: string }) => input)
   .handler(async ({ data }): Promise<boolean> => {
+    // A real-time availability check used right before adding to cart —
+    // must never be cached.
+    setResponseHeader("Cache-Control", "no-store");
+
     if (!isErpnextConfigured()) return true;
     const res = await erpRequest<{ data: { name: string }[] }>("/api/resource/Bin", {
       params: {
@@ -330,6 +345,8 @@ function discountFor(rule: ErpPricingRule, oldPrice: number) {
 export const getPromoProducts = createServerFn({ method: "GET" })
   .validator((input: { warehouse?: string } | undefined) => input)
   .handler(async ({ data }): Promise<PromoProduct[]> => {
+    setResponseHeader("Cache-Control", CACHE_SHORT);
+
     if (!isErpnextConfigured()) {
       return mockProducts.slice(0, 4).map((p, i) => {
         const discountPercent = [25, 20, 15, 30][i];
@@ -446,6 +463,8 @@ export type PromoRuleProducts = {
 export const getPromoRuleProducts = createServerFn({ method: "GET" })
   .validator((input: { ruleId: string; warehouse?: string }) => input)
   .handler(async ({ data }): Promise<PromoRuleProducts | null> => {
+    setResponseHeader("Cache-Control", CACHE_SHORT);
+
     if (!isErpnextConfigured()) return null;
 
     const config = getErpnextConfig()!;
@@ -523,6 +542,8 @@ export type PromoBanner = {
 // fabricated into a banner — the whole section is omitted when none qualify.
 export const getPromoBanners = createServerFn({ method: "GET" }).handler(
   async (): Promise<PromoBanner[]> => {
+    setResponseHeader("Cache-Control", CACHE_MEDIUM);
+
     if (!isErpnextConfigured()) return [];
 
     const config = getErpnextConfig()!;
@@ -559,6 +580,8 @@ const ROOT_ITEM_GROUP = "All Item Groups";
 export const getItemGroupChildren = createServerFn({ method: "GET" })
   .validator((input: { parent?: string } | undefined) => input)
   .handler(async ({ data }): Promise<ItemGroup[]> => {
+    setResponseHeader("Cache-Control", CACHE_MEDIUM);
+
     if (!isErpnextConfigured()) {
       return data?.parent ? [] : mockItemGroups;
     }

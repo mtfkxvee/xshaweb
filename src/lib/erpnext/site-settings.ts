@@ -67,11 +67,10 @@ type ErpSiteSettings = {
 
 export const getSiteSettings = createServerFn({ method: "GET" }).handler(
   async (): Promise<SiteSettings> => {
-    // Same fixed no-arg URL every call — without this, the browser's HTTP
-    // cache can silently serve a stale response after the team edits
-    // content in ERPNext (same failure mode hit earlier with
-    // getCurrentCustomer).
-    setResponseHeader("Cache-Control", "no-store");
+    // Short cache, not no-store: this is low-traffic marketing copy, not
+    // per-user data, so a brief window is fine — edits in ERPNext show up
+    // within a minute instead of hammering ERPNext on every render.
+    setResponseHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=60");
 
     if (!isErpnextConfigured()) return mockSiteSettings;
 

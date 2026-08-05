@@ -8,8 +8,7 @@ import { useCart } from "@/components/cart-context";
 import { useOutlet } from "@/components/outlet-context";
 import { formatIDR } from "@/lib/utils";
 import { getPromoProducts, getPromoRuleProducts } from "@/lib/erpnext/products";
-import { getSiteSettings } from "@/lib/erpnext/site-settings";
-import { mockSiteSettings } from "@/lib/erpnext/mock-data";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export const Route = createFileRoute("/promo")({
   validateSearch: (search: Record<string, unknown>): { rule?: string } =>
@@ -54,12 +53,7 @@ function Promo() {
   const deals = rule ? ruleDeals.data?.products : allDeals.data;
   const featured = !rule ? deals?.[0] : undefined;
 
-  const { data: settingsData } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => getSiteSettings(),
-    staleTime: 5 * 60_000,
-  });
-  const settings = settingsData ?? mockSiteSettings;
+  const settings = useSiteSettings();
 
   return (
     <SiteLayout>

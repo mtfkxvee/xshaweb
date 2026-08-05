@@ -12,8 +12,7 @@ import { logoutCustomer } from "@/lib/erpnext/auth";
 import { getMyLoyaltyStatus } from "@/lib/erpnext/loyalty";
 import { getMyOrders } from "@/lib/erpnext/orders";
 import { getPromoProducts } from "@/lib/erpnext/products";
-import { getSiteSettings } from "@/lib/erpnext/site-settings";
-import { mockSiteSettings } from "@/lib/erpnext/mock-data";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export const Route = createFileRoute("/akun")({
   head: () => ({
@@ -45,16 +44,20 @@ function Akun() {
     }
   }, [authLoading, isLoggedIn, navigate]);
 
+  // Per-customer data — always refetch on mount, never served from the
+  // cross-page React Query cache window (matches the server's no-store).
   const { data: loyalty } = useQuery({
     queryKey: ["loyalty-status"],
     queryFn: () => getMyLoyaltyStatus(),
     enabled: isLoggedIn,
+    staleTime: 0,
   });
 
   const { data: orders } = useQuery({
     queryKey: ["my-orders"],
     queryFn: () => getMyOrders(),
     enabled: isLoggedIn,
+    staleTime: 0,
   });
 
   const { data: promos } = useQuery({
@@ -62,12 +65,7 @@ function Akun() {
     queryFn: () => getPromoProducts(),
   });
 
-  const { data: settingsData } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => getSiteSettings(),
-    staleTime: 5 * 60_000,
-  });
-  const settings = settingsData ?? mockSiteSettings;
+  const settings = useSiteSettings();
 
   const handleLogout = async () => {
     await logoutCustomer();

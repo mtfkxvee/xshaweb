@@ -38,10 +38,12 @@ function Profil() {
     }
   }, [authLoading, isLoggedIn, navigate]);
 
+  // Per-customer data — always refetch on mount (matches the server's no-store).
   const { data: address } = useQuery({
     queryKey: ["my-address"],
     queryFn: () => getMyAddress(),
     enabled: isLoggedIn,
+    staleTime: 0,
   });
 
   const {

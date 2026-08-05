@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie } from "@tanstack/react-start/server";
+import { getCookie, setResponseHeader } from "@tanstack/react-start/server";
 import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
 import { erpRequest, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
@@ -12,6 +12,9 @@ const COUNTRY = "Indonesia";
 
 export const getMyAddress = createServerFn({ method: "GET" }).handler(
   async (): Promise<MyAddress | null> => {
+    // Per-customer address — never cache (same fixed no-arg URL every call).
+    setResponseHeader("Cache-Control", "no-store");
+
     if (!isErpnextConfigured()) return null;
 
     const sid = getCookie(SESSION_COOKIE);

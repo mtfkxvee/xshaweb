@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 import { erpRequest, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
 import { mockOutlets } from "./mock-data";
@@ -16,6 +17,9 @@ function normalizeWhatsapp(raw: string | null): string {
 }
 
 export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Promise<Outlet[]> => {
+  // Outlet list/warehouse mapping rarely changes — safe to cache a few minutes.
+  setResponseHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=120");
+
   if (!isErpnextConfigured()) return mockOutlets;
 
   const res = await erpRequest<{

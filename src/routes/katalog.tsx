@@ -8,8 +8,7 @@ import { useCart } from "@/components/cart-context";
 import { useOutlet } from "@/components/outlet-context";
 import { formatIDR } from "@/lib/utils";
 import { getItemGroupChildren, getProducts, type ProductQuery } from "@/lib/erpnext/products";
-import { getSiteSettings } from "@/lib/erpnext/site-settings";
-import { mockSiteSettings } from "@/lib/erpnext/mock-data";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export const Route = createFileRoute("/katalog")({
   validateSearch: (search: Record<string, unknown>): { q?: string } =>
@@ -47,12 +46,7 @@ function Katalog() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
 
-  const { data: settingsData } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => getSiteSettings(),
-    staleTime: 5 * 60_000,
-  });
-  const settings = settingsData ?? mockSiteSettings;
+  const settings = useSiteSettings();
 
   // The outlet filter itself lives in the top-nav bar (applies to katalog
   // and promo alike) — this page just reacts to it and resets pagination.

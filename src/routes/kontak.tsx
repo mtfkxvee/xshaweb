@@ -5,8 +5,7 @@ import { Icon } from "@/components/icon";
 import { Reveal } from "@/components/reveal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOutlets } from "@/lib/erpnext/outlets";
-import { getSiteSettings } from "@/lib/erpnext/site-settings";
-import { mockSiteSettings } from "@/lib/erpnext/mock-data";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export const Route = createFileRoute("/kontak")({
   head: () => ({
@@ -25,14 +24,9 @@ function Kontak() {
   const { data: outlets, isLoading } = useQuery({
     queryKey: ["outlets"],
     queryFn: () => getOutlets(),
-    staleTime: 5 * 60_000,
+    staleTime: 10 * 60_000,
   });
-  const { data: settingsData } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => getSiteSettings(),
-    staleTime: 5 * 60_000,
-  });
-  const settings = settingsData ?? mockSiteSettings;
+  const settings = useSiteSettings();
 
   return (
     <SiteLayout>

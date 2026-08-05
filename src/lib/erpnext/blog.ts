@@ -1,6 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 import { erpRequest, jsonFields } from "./client";
 import { getErpnextConfig, isErpnextConfigured } from "./config";
+
+const CACHE_BLOG = "public, max-age=180, stale-while-revalidate=120";
 
 export type BlogPost = {
   id: string;
@@ -40,6 +43,8 @@ function mapBlogPost(post: ErpBlogPost, erpBaseUrl: string): BlogPost {
 export const getBlogPosts = createServerFn({ method: "GET" })
   .validator((input: { limit?: number } | undefined) => input)
   .handler(async ({ data }): Promise<BlogPost[]> => {
+    setResponseHeader("Cache-Control", CACHE_BLOG);
+
     if (!isErpnextConfigured()) return [];
 
     const config = getErpnextConfig()!;
@@ -64,6 +69,8 @@ export const getBlogPosts = createServerFn({ method: "GET" })
 export const getBlogPost = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }): Promise<BlogPostDetail | null> => {
+    setResponseHeader("Cache-Control", CACHE_BLOG);
+
     if (!isErpnextConfigured()) return null;
 
     const config = getErpnextConfig()!;

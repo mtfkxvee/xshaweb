@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie } from "@tanstack/react-start/server";
+import { getCookie, setResponseHeader } from "@tanstack/react-start/server";
 import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
 import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
@@ -7,6 +7,9 @@ import type { LoyaltyStatus } from "./types";
 
 export const getMyLoyaltyStatus = createServerFn({ method: "GET" }).handler(
   async (): Promise<LoyaltyStatus | null> => {
+    // Per-customer balance — never cache (same fixed no-arg URL every call).
+    setResponseHeader("Cache-Control", "no-store");
+
     if (!isErpnextConfigured())
       return { points: 750, level: "Gold Member", loyaltyProgram: "MEMBER" };
 

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie } from "@tanstack/react-start/server";
+import { getCookie, setResponseHeader } from "@tanstack/react-start/server";
 import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
 import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
@@ -83,6 +83,9 @@ export const createOrder = createServerFn({ method: "POST" })
   });
 
 export const getMyOrders = createServerFn({ method: "GET" }).handler(async (): Promise<Order[]> => {
+  // Per-customer order history — never cache (same fixed no-arg URL every call).
+  setResponseHeader("Cache-Control", "no-store");
+
   if (!isErpnextConfigured()) return mockOrders;
 
   const sid = getCookie(SESSION_COOKIE);

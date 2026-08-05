@@ -4,8 +4,7 @@ import { SiteLayout } from "@/components/site-layout";
 import { Reveal } from "@/components/reveal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBlogPosts } from "@/lib/erpnext/blog";
-import { getSiteSettings } from "@/lib/erpnext/site-settings";
-import { mockSiteSettings } from "@/lib/erpnext/mock-data";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export const Route = createFileRoute("/blog")({
   head: () => ({
@@ -22,12 +21,7 @@ function BlogIndex() {
     queryKey: ["blog-posts", { limit: 20 }],
     queryFn: () => getBlogPosts({ data: { limit: 20 } }),
   });
-  const { data: settingsData } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => getSiteSettings(),
-    staleTime: 5 * 60_000,
-  });
-  const settings = settingsData ?? mockSiteSettings;
+  const settings = useSiteSettings();
 
   return (
     <SiteLayout>

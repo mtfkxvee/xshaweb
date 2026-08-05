@@ -1,15 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Icon } from "./icon";
-import { getSiteSettings } from "@/lib/erpnext/site-settings";
-import { mockSiteSettings } from "@/lib/erpnext/mock-data";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export function FloatingWhatsappButton() {
-  const { data: settingsData } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => getSiteSettings(),
-    staleTime: 5 * 60_000,
-  });
-  const whatsappNumber = (settingsData ?? mockSiteSettings).whatsappNumber;
+  const { whatsappNumber } = useSiteSettings();
 
   return (
     <a

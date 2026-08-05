@@ -1,12 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/site-layout";
 import { Icon } from "@/components/icon";
 import { AnimatedNumber } from "@/components/animated-number";
 import { Reveal } from "@/components/reveal";
 import { IMG } from "@/lib/catalog-data";
-import { getSiteSettings } from "@/lib/erpnext/site-settings";
-import { mockSiteSettings } from "@/lib/erpnext/mock-data";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export const Route = createFileRoute("/tentang")({
   head: () => ({
@@ -30,12 +28,7 @@ export const Route = createFileRoute("/tentang")({
 });
 
 function Tentang() {
-  const { data: settingsData } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => getSiteSettings(),
-    staleTime: 5 * 60_000,
-  });
-  const settings = settingsData ?? mockSiteSettings;
+  const settings = useSiteSettings();
 
   return (
     <SiteLayout>
