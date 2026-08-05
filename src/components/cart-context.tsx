@@ -18,6 +18,9 @@ type CartContextValue = {
   open: boolean;
   total: number;
   count: number;
+  // Increments every time an item is added — the top-nav cart icon keys an
+  // animation off this to pulse instead of the drawer popping open.
+  pulseKey: number;
   openCart: () => void;
   closeCart: () => void;
   add: (item: Omit<CartItem, "qty">) => void;
@@ -44,6 +47,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { selectedOutlet } = useOutlet();
   const [items, setItems] = useState<CartItem[]>([]);
   const [open, setOpen] = useState(false);
+  const [pulseKey, setPulseKey] = useState(0);
 
   // Hydrate from localStorage only on the client, after mount, so SSR output
   // (always empty cart) matches the initial client render.
@@ -63,6 +67,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       open,
       total,
       count,
+      pulseKey,
       openCart: () => setOpen(true),
       closeCart: () => setOpen(false),
       add: (item) => {
@@ -73,7 +78,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
           }
           return [...prev, { ...item, qty: 1 }];
         });
-        setOpen(true);
+        // Don't pop the drawer open on every add — just pulse the cart icon
+        // so shoppers can keep browsing; they open the cart themselves when
+        // ready to check out.
+        setPulseKey((k) => k + 1);
 
         // If an outlet is picked globally, warn (but don't block) when the
         // item isn't actually in stock there — the shopper finds out now
@@ -97,7 +105,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       remove: (id) => setItems((prev) => prev.filter((p) => p.id !== id)),
       clear: () => setItems([]),
     };
-  }, [items, open, selectedOutlet]);
+  }, [items, open, pulseKey, selectedOutlet]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

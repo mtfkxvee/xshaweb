@@ -15,8 +15,9 @@ const links = [
 ] as const;
 
 export function TopNav() {
-  const { openCart, count } = useCart();
-  const { isLoggedIn } = useAuth();
+  const { openCart, count, pulseKey } = useCart();
+  const { isLoggedIn, user } = useAuth();
+  const initial = user?.customer?.name?.trim().charAt(0).toUpperCase();
   const { outlets, outletCode, setOutletCode } = useOutlet();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -107,7 +108,11 @@ export function TopNav() {
             aria-label="Buka keranjang belanja"
             className="relative p-2 text-primary transition-transform active:scale-90"
           >
-            <Icon name="shopping_cart" />
+            <Icon
+              key={pulseKey}
+              name="shopping_cart"
+              className={pulseKey > 0 ? "animate-cart-bounce" : ""}
+            />
             {count > 0 && (
               <span
                 key={count}
@@ -122,7 +127,13 @@ export function TopNav() {
             aria-label={isLoggedIn ? "Akun member" : "Masuk member"}
             className="hidden p-2 text-primary transition-transform active:scale-90 md:block"
           >
-            <Icon name="person" filled={isLoggedIn} />
+            {isLoggedIn && initial ? (
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[13px] font-bold text-on-primary">
+                {initial}
+              </span>
+            ) : (
+              <Icon name="person" filled={isLoggedIn} />
+            )}
           </Link>
         </div>
       </div>
