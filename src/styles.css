@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 /*
  * X-SHA design system — Heritage of Tasikmalaya
@@ -324,4 +325,40 @@
 
 .material-symbols-outlined.filled {
   font-variation-settings: "FILL" 1;
+}
+
+/* Blog post body (rendered from ERPNext's Rich Text editor HTML) — gives
+   headings, bold text, quotes, and lists the same visual hierarchy the
+   ERPNext editor preview shows, using the site's own brand tokens instead
+   of the Typography plugin's default gray palette. */
+.prose {
+  --tw-prose-body: var(--color-on-surface);
+  --tw-prose-headings: var(--color-primary);
+  --tw-prose-lead: var(--color-on-surface-variant);
+  --tw-prose-links: var(--color-secondary);
+  --tw-prose-bold: var(--color-on-surface);
+  --tw-prose-counters: var(--color-secondary);
+  --tw-prose-bullets: var(--color-primary-container);
+  --tw-prose-hr: var(--color-outline-variant);
+  --tw-prose-quotes: var(--color-on-surface);
+  --tw-prose-quote-borders: var(--color-primary);
+  --tw-prose-captions: var(--color-on-surface-variant);
+  --tw-prose-code: var(--color-secondary);
+  --tw-prose-th-borders: var(--color-outline-variant);
+  --tw-prose-td-borders: var(--color-outline-variant);
+  font-size: var(--text-body-lg);
+  line-height: 1.75;
+}
+
+.prose :where(h1, h2, h3, h4):not(:where([class~="not-prose"] *)) {
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.prose :where(strong):not(:where([class~="not-prose"] *)) {
+  font-weight: 700;
+}
+
+.prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+  font-style: italic;
 }
