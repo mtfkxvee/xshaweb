@@ -81,6 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "google-site-verification", content: "FmYW0jg7j47V8mqryG7ctV37bp88db4xRkf3I_UdBt4" },
       { title: "X-SHA | Heritage of Tasikmalaya" },
       {
         name: "description",

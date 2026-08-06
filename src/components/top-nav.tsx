@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icon";
 import { useCart } from "./cart-context";
 import { useOutlet } from "./outlet-context";
@@ -23,6 +23,20 @@ export function TopNav() {
   const [search, setSearch] = useState("");
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const cartIconRef = useRef<HTMLSpanElement>(null);
+
+  // Replays the pulse animation on every add-to-cart via direct DOM
+  // manipulation (remove class, force reflow, re-add) rather than a
+  // key-based remount — remounting the icon on every rapid click let old
+  // instances pile up in the DOM instead of being cleanly replaced.
+  useEffect(() => {
+    if (pulseKey === 0) return;
+    const el = cartIconRef.current;
+    if (!el) return;
+    el.classList.remove("animate-cart-bounce");
+    void el.offsetWidth;
+    el.classList.add("animate-cart-bounce");
+  }, [pulseKey]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -108,11 +122,7 @@ export function TopNav() {
             aria-label="Buka keranjang belanja"
             className="relative p-2 text-primary transition-transform active:scale-90"
           >
-            <Icon
-              key={pulseKey}
-              name="shopping_cart"
-              className={pulseKey > 0 ? "animate-cart-bounce" : ""}
-            />
+            <Icon ref={cartIconRef} name="shopping_cart" />
             {count > 0 && (
               <span
                 key={count}
