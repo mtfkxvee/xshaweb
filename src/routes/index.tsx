@@ -140,23 +140,31 @@ function Beranda() {
                   Lihat Semua
                 </Link>
               </div>
-              <div className="scroll-hide -mx-gutter flex snap-x gap-4 overflow-x-auto px-gutter sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
-                {banners?.map((b) => (
-                  <Link
-                    key={b.id}
-                    to="/promo"
-                    search={{ rule: b.id }}
-                    className="block w-64 shrink-0 snap-start overflow-hidden rounded-2xl glass-panel transition-transform hover:scale-[1.02] sm:w-auto"
-                  >
-                    <img
-                      src={b.image}
-                      alt={b.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
-                  </Link>
-                ))}
-              </div>
+              <Carousel opts={{ align: "start", dragFree: true }}>
+                <CarouselContent className="-ml-4">
+                  {banners?.map((b) => (
+                    <CarouselItem
+                      key={b.id}
+                      className="basis-2/3 pl-4 sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
+                    >
+                      <Link
+                        to="/promo"
+                        search={{ rule: b.id }}
+                        className="block overflow-hidden rounded-2xl glass-panel transition-transform hover:scale-[1.02]"
+                      >
+                        <img
+                          src={b.image}
+                          alt={b.title}
+                          loading="lazy"
+                          className="aspect-square h-full w-full object-cover"
+                        />
+                      </Link>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="left-1 hidden border-none bg-white/70 text-primary hover:bg-white sm:flex" />
+                <CarouselNext className="right-1 hidden border-none bg-white/70 text-primary hover:bg-white sm:flex" />
+              </Carousel>
             </section>
           </Reveal>
         )}
