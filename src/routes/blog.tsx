@@ -1,12 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { SiteLayout } from "@/components/site-layout";
 import { Reveal } from "@/components/reveal";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getBlogPosts } from "@/lib/erpnext/blog";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
 export const Route = createFileRoute("/blog")({
+  // Runs server-side on the initial request, so the post list (and its
+  // links to each article) are present in the raw HTML for crawlers —
+  // fetching this client-only left the index page with no discoverable
+  // links to any post in the un-hydrated HTML.
+  loader: () => getBlogPosts({ data: { limit: 20 } }),
   head: () => ({
     meta: [
       { title: "Blog | X-SHA" },
@@ -17,10 +20,7 @@ export const Route = createFileRoute("/blog")({
 });
 
 function BlogIndex() {
-  const { data: posts, isLoading } = useQuery({
-    queryKey: ["blog-posts", { limit: 20 }],
-    queryFn: () => getBlogPosts({ data: { limit: 20 } }),
-  });
+  const posts = Route.useLoaderData();
   const settings = useSiteSettings();
 
   return (
@@ -35,15 +35,7 @@ function BlogIndex() {
           </p>
         </header>
 
-        {isLoading && (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-72 rounded-3xl" />
-            ))}
-          </div>
-        )}
-
-        {!isLoading && (posts?.length ?? 0) === 0 && (
+        {posts.length === 0 && (
           <p className="py-16 text-center text-on-surface-variant">
             Belum ada artikel yang dipublikasikan.
           </p>
@@ -51,7 +43,7 @@ function BlogIndex() {
 
         <Reveal>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {posts?.map((post) => (
+            {posts.map((post) => (
               <Link
                 key={post.id}
                 to="/blog/$postId"
