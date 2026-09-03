@@ -100,21 +100,36 @@ function Kontak() {
               {outlets?.map((o) => (
                 <div
                   key={o.code}
-                  className="hover-lift flex items-start gap-4 rounded-2xl glass-panel p-6"
+                  className="hover-lift flex flex-col overflow-hidden rounded-2xl glass-panel"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary">
-                    <Icon name="storefront" />
+                  <div className="relative h-40 shrink-0 overflow-hidden bg-primary/10">
+                    {o.image ? (
+                      <img
+                        src={o.image}
+                        alt={o.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-primary/40">
+                        <Icon name="storefront" className="text-[48px]" />
+                      </div>
+                    )}
                   </div>
-                  <div>
+                  <div className="flex flex-grow flex-col p-6">
                     <p className="font-bold text-on-surface">{o.name}</p>
                     {o.city && <p className="text-sm text-on-surface-variant">{o.city}</p>}
+                    {o.description && (
+                      <p className="mt-2 text-sm text-on-surface-variant">{o.description}</p>
+                    )}
                     <a
                       href={`https://wa.me/${o.whatsapp}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                      className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 font-semibold text-white transition-transform active:scale-95"
                     >
-                      <Icon name="chat" className="text-[16px]" />+{o.whatsapp}
+                      <Icon name="chat" className="text-[18px]" filled />
+                      Chat via WhatsApp
                     </a>
                   </div>
                 </div>

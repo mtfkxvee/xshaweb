@@ -75,6 +75,8 @@ export const mockOutlets: Outlet[] = [
     territory: null,
     whatsapp: "6288299633581",
     warehouse: "SELLING AREA XSC - X",
+    image: IMG.office,
+    description: "Outlet flagship X-SHA dengan koleksi fashion dan kebutuhan rumah tangga lengkap.",
   },
   {
     code: "XCW",
@@ -83,6 +85,8 @@ export const mockOutlets: Outlet[] = [
     territory: null,
     whatsapp: "6288299633581",
     warehouse: "SELLING AREA XCW - X",
+    image: null,
+    description: null,
   },
   {
     code: "PSR",
@@ -91,6 +95,8 @@ export const mockOutlets: Outlet[] = [
     territory: null,
     whatsapp: "6288299633581",
     warehouse: "SELLING AREA PSR - X",
+    image: null,
+    description: null,
   },
   {
     code: "XPY",
@@ -99,6 +105,8 @@ export const mockOutlets: Outlet[] = [
     territory: null,
     whatsapp: "6288299633581",
     warehouse: "SELLING AREA XPY - X",
+    image: null,
+    description: null,
   },
 ];
 

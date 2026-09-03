@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { erpRequest, jsonFields, jsonFilters } from "./client";
-import { isErpnextConfigured } from "./config";
+import { getErpnextConfig, isErpnextConfigured } from "./config";
 import { mockOutlets } from "./mock-data";
 import type { Outlet } from "./types";
 
@@ -21,6 +21,7 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
   setResponseHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=120");
 
   if (!isErpnextConfigured()) return mockOutlets;
+  const config = getErpnextConfig()!;
 
   const res = await erpRequest<{
     data: {
@@ -30,10 +31,21 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
       teritory: string | null;
       custom_whatsapp: string | null;
       warehouse: string | null;
+      custom_image: string | null;
+      custom_description: string | null;
     }[];
   }>("/api/resource/Outlet", {
     params: {
-      fields: jsonFields(["kode", "nama", "city", "teritory", "custom_whatsapp", "warehouse"]),
+      fields: jsonFields([
+        "kode",
+        "nama",
+        "city",
+        "teritory",
+        "custom_whatsapp",
+        "warehouse",
+        "custom_image",
+        "custom_description",
+      ]),
       filters: jsonFilters([
         ["is_active", "=", 1],
         ["tampilkan_di_website", "=", 1],
@@ -50,5 +62,7 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
     territory: o.teritory,
     whatsapp: normalizeWhatsapp(o.custom_whatsapp),
     warehouse: o.warehouse,
+    image: o.custom_image ? `${config.url}${o.custom_image}` : null,
+    description: o.custom_description || null,
   }));
 });

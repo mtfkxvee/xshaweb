@@ -27,6 +27,8 @@ export type Outlet = {
   // Warehouse this outlet's stock lives in (Outlet.warehouse in ERPNext) —
   // used to filter the catalog to items in stock at this outlet.
   warehouse: string | null;
+  image: string | null;
+  description: string | null;
 };
 
 export type Customer = {
