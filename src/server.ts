@@ -3,6 +3,9 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { renderSitemap } from "./lib/sitemap";
+import { applySecurityHeaders } from "./lib/security-headers";
+
+const isDev = process.env.NODE_ENV !== "production";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -51,12 +54,15 @@ export default {
     if (url.pathname === "/sitemap.xml") {
       try {
         const xml = await renderSitemap(url.origin);
-        return new Response(xml, {
-          headers: {
-            "content-type": "application/xml; charset=utf-8",
-            "cache-control": "public, max-age=3600",
-          },
-        });
+        return applySecurityHeaders(
+          new Response(xml, {
+            headers: {
+              "content-type": "application/xml; charset=utf-8",
+              "cache-control": "public, max-age=3600",
+            },
+          }),
+          isDev,
+        );
       } catch (error) {
         console.error(error);
         // Fall through to the normal handler rather than 500ing — worst
@@ -67,13 +73,16 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return applySecurityHeaders(await normalizeCatastrophicSsrResponse(response), isDev);
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return applySecurityHeaders(
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+        isDev,
+      );
     }
   },
 };
