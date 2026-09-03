@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { SiteLayout } from "@/components/site-layout";
 import { Icon } from "@/components/icon";
 import { Reveal } from "@/components/reveal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getOutlets } from "@/lib/erpnext/outlets";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import type { Outlet } from "@/lib/erpnext/types";
 
 export const Route = createFileRoute("/kontak")({
   head: () => ({
@@ -27,6 +30,7 @@ function Kontak() {
     staleTime: 10 * 60_000,
   });
   const settings = useSiteSettings();
+  const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
 
   return (
     <SiteLayout>
@@ -98,9 +102,11 @@ function Kontak() {
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {outlets?.map((o) => (
-                <div
+                <button
                   key={o.code}
-                  className="hover-lift flex flex-col overflow-hidden rounded-2xl glass-panel"
+                  type="button"
+                  onClick={() => setSelectedOutlet(o)}
+                  className="hover-lift flex flex-col overflow-hidden rounded-2xl glass-panel text-left"
                 >
                   <div className="relative h-40 shrink-0 overflow-hidden bg-primary/10">
                     {o.image ? (
@@ -120,24 +126,77 @@ function Kontak() {
                     <p className="font-bold text-on-surface">{o.name}</p>
                     {o.city && <p className="text-sm text-on-surface-variant">{o.city}</p>}
                     {o.description && (
-                      <p className="mt-2 text-sm text-on-surface-variant">{o.description}</p>
+                      <p className="mt-2 line-clamp-3 text-sm text-on-surface-variant">
+                        {o.description}
+                      </p>
                     )}
                     <a
                       href={`https://wa.me/${o.whatsapp}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 font-semibold text-white transition-transform active:scale-95"
                     >
                       <Icon name="chat" className="text-[18px]" filled />
                       Chat via WhatsApp
                     </a>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </section>
         </Reveal>
       </div>
+
+      <Dialog
+        open={selectedOutlet !== null}
+        onOpenChange={(open) => !open && setSelectedOutlet(null)}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto p-0">
+          {selectedOutlet && (
+            <>
+              <div className="relative h-64 shrink-0 overflow-hidden rounded-t-lg bg-primary/10">
+                {selectedOutlet.image ? (
+                  <img
+                    src={selectedOutlet.image}
+                    alt={selectedOutlet.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-primary/40">
+                    <Icon name="storefront" className="text-[64px]" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-3 p-6 pt-4">
+                <DialogTitle className="font-display text-headline-md text-on-surface">
+                  {selectedOutlet.name}
+                </DialogTitle>
+                {selectedOutlet.city && (
+                  <p className="flex items-center gap-1.5 text-sm text-on-surface-variant">
+                    <Icon name="location_on" className="text-[16px]" />
+                    {selectedOutlet.city}
+                  </p>
+                )}
+                {selectedOutlet.description && (
+                  <p className="whitespace-pre-line text-body-md text-on-surface-variant">
+                    {selectedOutlet.description}
+                  </p>
+                )}
+                <a
+                  href={`https://wa.me/${selectedOutlet.whatsapp}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 font-semibold text-white transition-transform active:scale-95"
+                >
+                  <Icon name="chat" className="text-[18px]" filled />
+                  Chat via WhatsApp
+                </a>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </SiteLayout>
   );
 }
