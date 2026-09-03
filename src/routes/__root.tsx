@@ -96,16 +96,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      // Google Fonts CSS loaded non-render-blocking: media="print" still
+      // fetches it immediately, it just doesn't block on-screen rendering.
+      // The tiny inline script in RootShell below flips `media` back to
+      // "all" once the page has parsed. Without this, these 2 stylesheets
+      // (plus the font files they reference, including the ~450KB Material
+      // Symbols variable font) sat in the critical render path ahead of the
+      // hero image.
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
+        media: "print",
+        "data-async-css": "true",
       },
+      // display=block (not swap) here on purpose: this is an icon-ligature
+      // font, so browser's font-fallback-swap shows the raw icon *name* as
+      // visible text ("shopping_cart") until it loads — much worse than the
+      // brief invisible gap `block` gives every icon on the page.
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=block",
+        media: "print",
+        "data-async-css": "true",
       },
       { rel: "icon", href: "/xsha-logo.png", type: "image/png" },
-    ],
+    ] as Array<Record<string, string>>,
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -113,11 +128,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+// Flips the Google Fonts stylesheets (loaded with media="print" so they
+// don't block initial render — see the `links` array above) over to
+// media="all" once they've actually finished downloading, so the fonts and
+// Material Symbols icons apply without ever blocking paint on them.
+const ASYNC_CSS_SCRIPT = `
+(function () {
+  document.querySelectorAll('link[data-async-css]').forEach(function (link) {
+    link.media = 'all';
+  });
+})();
+`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="id">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: ASYNC_CSS_SCRIPT }} />
       </head>
       <body>
         {children}

@@ -18,27 +18,37 @@ import { IMG } from "@/lib/catalog-data";
 import { formatIDR } from "@/lib/utils";
 import { getProducts, getPromoBanners, getPromoProducts } from "@/lib/erpnext/products";
 import { getBlogPosts } from "@/lib/erpnext/blog";
-import { useSiteSettings } from "@/hooks/use-site-settings";
+import { getSiteSettings } from "@/lib/erpnext/site-settings";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "X-SHA | X-TRA ORDINARY SHOPPING AMBIENCE" },
-      {
-        name: "description",
-        content:
-          "Belanja produk kurasi halal khas Tasikmalaya: batik, tenun, kelom geulis, kopi Galunggung. 16+ outlet & 40.000+ member setia.",
-      },
-      { property: "og:title", content: "X-SHA | X-TRA ORDINARY SHOPPING AMBIENCE" },
-      {
-        property: "og:description",
-        content:
-          "Produk kurasi halal khas Tasikmalaya, promo member, dan 16+ outlet regional sejak 2006.",
-      },
-      { property: "og:image", content: IMG.hero },
-      { name: "twitter:image", content: IMG.hero },
-    ],
-  }),
+  // Runs server-side so the hero headline/CTA/first slide image are already
+  // in the initial HTML — this page's hero image is the LCP element, and
+  // fetching settings client-only (the old useSiteSettings() hook) meant
+  // the browser couldn't even discover that image's URL until after JS
+  // hydration ran and the query resolved.
+  loader: () => getSiteSettings(),
+  head: ({ loaderData }) => {
+    const heroImage = loaderData?.heroSlides[0]?.image ?? IMG.hero;
+    return {
+      meta: [
+        { title: "X-SHA | X-TRA ORDINARY SHOPPING AMBIENCE" },
+        {
+          name: "description",
+          content:
+            "Belanja produk kurasi halal khas Tasikmalaya: batik, tenun, kelom geulis, kopi Galunggung. 16+ outlet & 40.000+ member setia.",
+        },
+        { property: "og:title", content: "X-SHA | X-TRA ORDINARY SHOPPING AMBIENCE" },
+        {
+          property: "og:description",
+          content:
+            "Produk kurasi halal khas Tasikmalaya, promo member, dan 16+ outlet regional sejak 2006.",
+        },
+        { property: "og:image", content: heroImage },
+        { name: "twitter:image", content: heroImage },
+      ],
+      links: [],
+    };
+  },
   component: Beranda,
 });
 
@@ -46,7 +56,7 @@ function Beranda() {
   const { add } = useCart();
   const [api, setApi] = useState<CarouselApi>();
 
-  const settings = useSiteSettings();
+  const settings = Route.useLoaderData();
 
   useEffect(() => {
     if (!api) return;
@@ -88,11 +98,18 @@ function Beranda() {
             className="h-[440px] overflow-hidden rounded-3xl glass-panel sm:h-[420px]"
           >
             <CarouselContent className="-ml-0">
-              {settings.heroSlides.map((slide) => (
+              {settings.heroSlides.map((slide, i) => (
                 <CarouselItem key={slide.alt} className="pl-0">
                   <img
                     src={slide.image}
                     alt={slide.alt}
+                    width={1440}
+                    height={440}
+                    // Only the first slide is the actual LCP candidate —
+                    // load it eagerly at high priority, defer the rest.
+                    {...(i === 0
+                      ? { loading: "eager" as const, fetchPriority: "high" as const }
+                      : { loading: "lazy" as const })}
                     className="h-[440px] w-full object-cover sm:h-[420px]"
                   />
                 </CarouselItem>
