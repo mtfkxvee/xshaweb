@@ -42,8 +42,8 @@ function BlogDetail() {
             {new Date(post.publishedOn).toLocaleDateString("id-ID", { dateStyle: "long" })}
           </p>
         )}
-        <div className="mb-8 aspect-video overflow-hidden rounded-3xl">
-          <img src={post.image} alt={post.title} className="h-full w-full object-cover" />
+        <div className="mb-8 overflow-hidden rounded-3xl">
+          <img src={post.image} alt={post.title} className="w-full h-auto" />
         </div>
         {/* Blog content is authored in ERPNext by the X-SHA team, not user
             submitted, so rendering it as trusted HTML is acceptable here. */}
