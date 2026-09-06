@@ -5,7 +5,7 @@ import { isErpnextConfigured } from "./erpnext/config";
 // createServerFn-wrapped getBlogPosts), because this runs from the Worker's
 // top-level fetch handler, outside the h3 request context that
 // createServerFn/setResponseHeader rely on.
-const STATIC_PATHS = ["/", "/katalog", "/promo", "/blog", "/tentang", "/kontak"];
+const STATIC_PATHS = ["/", "/katalog", "/promo", "/blog", "/tentang", "/karir", "/kontak"];
 
 async function getPublishedBlogSlugs(): Promise<string[]> {
   if (!isErpnextConfigured()) return [];

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AkunRouteImport } from './routes/akun'
 import { Route as BlogRouteImport } from './routes/blog'
+import { Route as KarirRouteImport } from './routes/karir'
 import { Route as KatalogRouteImport } from './routes/katalog'
 import { Route as KontakRouteImport } from './routes/kontak'
 import { Route as LoginRouteImport } from './routes/login'
@@ -34,6 +35,11 @@ const AkunRoute = AkunRouteImport.update({
 const BlogRoute = BlogRouteImport.update({
   id: '/blog',
   path: '/blog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KarirRoute = KarirRouteImport.update({
+  id: '/karir',
+  path: '/karir',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KatalogRoute = KatalogRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
   '/blog': typeof BlogRoute
+  '/karir': typeof KarirRoute
   '/katalog': typeof KatalogRoute
   '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
   '/blog': typeof BlogRoute
+  '/karir': typeof KarirRoute
   '/katalog': typeof KatalogRoute
   '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/akun': typeof AkunRoute
   '/blog': typeof BlogRoute
+  '/karir': typeof KarirRoute
   '/katalog': typeof KatalogRoute
   '/kontak': typeof KontakRoute
   '/login': typeof LoginRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/akun'
     | '/blog'
+    | '/karir'
     | '/katalog'
     | '/kontak'
     | '/login'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/akun'
     | '/blog'
+    | '/karir'
     | '/katalog'
     | '/kontak'
     | '/login'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/akun'
     | '/blog'
+    | '/karir'
     | '/katalog'
     | '/kontak'
     | '/login'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AkunRoute: typeof AkunRoute
   BlogRoute: typeof BlogRoute
+  KarirRoute: typeof KarirRoute
   KatalogRoute: typeof KatalogRoute
   KontakRoute: typeof KontakRoute
   LoginRoute: typeof LoginRoute
@@ -194,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/blog'
       fullPath: '/blog'
       preLoaderRoute: typeof BlogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/karir': {
+      id: '/karir'
+      path: '/karir'
+      fullPath: '/karir'
+      preLoaderRoute: typeof KarirRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/katalog': {
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AkunRoute: AkunRoute,
   BlogRoute: BlogRoute,
+  KarirRoute: KarirRoute,
   KatalogRoute: KatalogRoute,
   KontakRoute: KontakRoute,
   LoginRoute: LoginRoute,

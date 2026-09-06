@@ -11,6 +11,7 @@ const links = [
   { to: "/promo", label: "Promo" },
   { to: "/blog", label: "Blog" },
   { to: "/tentang", label: "Tentang Kami" },
+  { to: "/karir", label: "Karir" },
   { to: "/kontak", label: "Kontak" },
 ] as const;
 

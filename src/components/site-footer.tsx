@@ -71,6 +71,14 @@ export function SiteFooter() {
             <li>
               <Link
                 className="text-body-md text-on-surface-variant transition-colors hover:text-secondary"
+                to="/karir"
+              >
+                Karir
+              </Link>
+            </li>
+            <li>
+              <Link
+                className="text-body-md text-on-surface-variant transition-colors hover:text-secondary"
                 to="/kontak"
               >
                 Kontak &amp; Outlet
