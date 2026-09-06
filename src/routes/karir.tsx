@@ -37,8 +37,8 @@ function Karir() {
         <header className="mb-stack-lg">
           <h1 className="font-display text-headline-lg-mobile md:text-display-lg">Karir</h1>
           <p className="mt-2 max-w-2xl text-body-lg text-on-surface-variant">
-            Bergabung dengan tim X-SHA — lowongan kerja yang sedang dibuka di seluruh outlet dan
-            kantor kami.
+            Bergabung dengan tim X-SHA — cek kesempatan berkarir di seluruh outlet dan kantor
+            kami.
           </p>
         </header>
 
