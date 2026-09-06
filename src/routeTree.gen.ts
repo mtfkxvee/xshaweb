@@ -21,6 +21,7 @@ import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as PromoRouteImport } from './routes/promo'
 import { Route as TentangRouteImport } from './routes/tentang'
 import { Route as BlogPostIdRouteImport } from './routes/blog_.$postId'
+import { Route as KarirJobIdRouteImport } from './routes/karir_.$jobId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +83,11 @@ const BlogPostIdRoute = BlogPostIdRouteImport.update({
   path: '/blog/$postId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KarirJobIdRoute = KarirJobIdRouteImport.update({
+  id: '/karir_/$jobId',
+  path: '/karir/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
   '/blog/$postId': typeof BlogPostIdRoute
+  '/karir/$jobId': typeof KarirJobIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
   '/blog/$postId': typeof BlogPostIdRoute
+  '/karir/$jobId': typeof KarirJobIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
   '/blog_/$postId': typeof BlogPostIdRoute
+  '/karir_/$jobId': typeof KarirJobIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/promo'
     | '/tentang'
     | '/blog/$postId'
+    | '/karir/$jobId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/promo'
     | '/tentang'
     | '/blog/$postId'
+    | '/karir/$jobId'
   id:
     | '__root__'
     | '/'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/promo'
     | '/tentang'
     | '/blog_/$postId'
+    | '/karir_/$jobId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -184,6 +196,7 @@ export interface RootRouteChildren {
   PromoRoute: typeof PromoRoute
   TentangRoute: typeof TentangRoute
   BlogPostIdRoute: typeof BlogPostIdRoute
+  KarirJobIdRoute: typeof KarirJobIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlogPostIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/karir_/$jobId': {
+      id: '/karir_/$jobId'
+      path: '/karir/$jobId'
+      fullPath: '/karir/$jobId'
+      preLoaderRoute: typeof KarirJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -288,6 +308,7 @@ const rootRouteChildren: RootRouteChildren = {
   PromoRoute: PromoRoute,
   TentangRoute: TentangRoute,
   BlogPostIdRoute: BlogPostIdRoute,
+  KarirJobIdRoute: KarirJobIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

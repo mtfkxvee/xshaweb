@@ -14,15 +14,34 @@ export type JobOpening = {
   employmentType: string | null;
   isOpen: boolean;
   postedOn: string | null;
+  closesOn: string | null;
+  closedOn: string | null;
   descriptionText: string;
+  descriptionHtml: string;
+  imageUrl: string | null;
   salaryRange: { lower: number; upper: number; currency: string; per: string } | null;
-  // Full URL to this job's page on ERPNext's own public careers portal
-  // (HRMS ships one at erp.x-sha.id/jobs/...) — that page already has a
-  // working "Apply" flow for the public. The ERPNext *desk* Job Applicant
-  // list (the internal HR review screen) requires an ERPNext login, so it
-  // isn't linked from here at all.
-  applyUrl: string;
 };
+
+const JOB_OPENING_FIELDS = [
+  "name",
+  "job_title",
+  "designation",
+  "department",
+  "location",
+  "employment_type",
+  "status",
+  "posted_on",
+  "closes_on",
+  "closed_on",
+  "description",
+  "custom_foto",
+  "currency",
+  "lower_range",
+  "upper_range",
+  "salary_per",
+  "publish_salary_range",
+  "publish",
+];
 
 type ErpJobOpening = {
   name: string;
@@ -33,13 +52,16 @@ type ErpJobOpening = {
   employment_type: string | null;
   status: "Open" | "Closed";
   posted_on: string | null;
+  closes_on: string | null;
+  closed_on: string | null;
   description: string | null;
-  route: string | null;
+  custom_foto: string | null;
   currency: string | null;
   lower_range: number;
   upper_range: number;
   salary_per: string | null;
   publish_salary_range: number;
+  publish: number;
 };
 
 function stripHtml(html: string | null): string {
@@ -48,6 +70,33 @@ function stripHtml(html: string | null): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function mapJobOpening(j: ErpJobOpening, erpUrl: string): JobOpening {
+  return {
+    id: j.name,
+    title: j.job_title,
+    designation: j.designation,
+    department: j.department,
+    location: j.location,
+    employmentType: j.employment_type,
+    isOpen: j.status === "Open",
+    postedOn: j.posted_on,
+    closesOn: j.closes_on,
+    closedOn: j.closed_on,
+    descriptionText: stripHtml(j.description),
+    descriptionHtml: j.description ?? "",
+    imageUrl: j.custom_foto ? `${erpUrl}${j.custom_foto}` : null,
+    salaryRange:
+      j.publish_salary_range && (j.lower_range || j.upper_range)
+        ? {
+            lower: j.lower_range,
+            upper: j.upper_range,
+            currency: j.currency ?? "IDR",
+            per: j.salary_per ?? "Month",
+          }
+        : null,
+  };
 }
 
 export const getJobOpenings = createServerFn({ method: "GET" }).handler(
@@ -61,52 +110,38 @@ export const getJobOpenings = createServerFn({ method: "GET" }).handler(
     const config = getErpnextConfig()!;
     const res = await erpRequest<{ data: ErpJobOpening[] }>("/api/resource/Job Opening", {
       params: {
-        fields: jsonFields([
-          "name",
-          "job_title",
-          "designation",
-          "department",
-          "location",
-          "employment_type",
-          "status",
-          "posted_on",
-          "description",
-          "route",
-          "currency",
-          "lower_range",
-          "upper_range",
-          "salary_per",
-          "publish_salary_range",
-        ]),
+        fields: jsonFields(JOB_OPENING_FIELDS),
         filters: jsonFilters([["publish", "=", 1]]),
         order_by: "posted_on desc",
         limit_page_length: "0",
       },
     });
 
-    return res.data.map((j) => ({
-      id: j.name,
-      title: j.job_title,
-      designation: j.designation,
-      department: j.department,
-      location: j.location,
-      employmentType: j.employment_type,
-      isOpen: j.status === "Open",
-      postedOn: j.posted_on,
-      descriptionText: stripHtml(j.description),
-      salaryRange:
-        j.publish_salary_range && (j.lower_range || j.upper_range)
-          ? {
-              lower: j.lower_range,
-              upper: j.upper_range,
-              currency: j.currency ?? "IDR",
-              per: j.salary_per ?? "Month",
-            }
-          : null,
-      applyUrl: `${config.url}/${j.route ?? ""}`,
-    }));
+    return res.data.map((j) => mapJobOpening(j, config.url));
   },
 );
+
+export const getJobOpening = createServerFn({ method: "GET" })
+  .validator((input: { id: string }) => input)
+  .handler(async ({ data }): Promise<JobOpening | null> => {
+    setResponseHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=120");
+
+    if (!isErpnextConfigured()) return null;
+
+    const config = getErpnextConfig()!;
+    try {
+      const res = await erpRequest<{ data: ErpJobOpening }>(
+        `/api/resource/Job Opening/${encodeURIComponent(data.id)}`,
+        { params: { fields: jsonFields(JOB_OPENING_FIELDS) } },
+      );
+      // A single-record GET can't be filtered server-side, so enforce the
+      // "published only" rule here — same reasoning as the blog post fix.
+      if (!res.data.publish) return null;
+      return mapJobOpening(res.data, config.url);
+    } catch {
+      return null;
+    }
+  });
 
 export type SubmitJobApplicationInput = {
   jobId: string;
