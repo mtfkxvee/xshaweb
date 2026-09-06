@@ -33,11 +33,12 @@ function formatDate(value: string | null): string | null {
 }
 
 function JobDetail() {
+  // getJobOpening already returns null (→ notFound) for closed positions —
+  // this page never renders for one.
   const job = Route.useLoaderData();
   const [applying, setApplying] = useState(false);
   const postedOn = formatDate(job.postedOn);
   const closesOn = formatDate(job.closesOn);
-  const closedOn = formatDate(job.closedOn);
 
   return (
     <SiteLayout>
@@ -57,14 +58,8 @@ function JobDetail() {
 
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h1 className="font-display text-headline-lg-mobile md:text-display-lg">{job.title}</h1>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ${
-              job.isOpen
-                ? "bg-success-container text-success"
-                : "bg-surface-container-high text-on-surface-variant"
-            }`}
-          >
-            {job.isOpen ? "Dibuka" : "Ditutup"}
+          <span className="rounded-full bg-success-container px-2.5 py-0.5 text-[11px] font-bold uppercase text-success">
+            Dibuka
           </span>
         </div>
 
@@ -100,18 +95,11 @@ function JobDetail() {
               Dibuka {postedOn}
             </span>
           )}
-          {closedOn ? (
+          {closesOn && (
             <span className="flex items-center gap-1.5">
               <Icon name="event_busy" className="text-[18px]" />
-              Ditutup {closedOn}
+              Batas lamaran {closesOn}
             </span>
-          ) : (
-            closesOn && (
-              <span className="flex items-center gap-1.5">
-                <Icon name="event_busy" className="text-[18px]" />
-                Batas lamaran {closesOn}
-              </span>
-            )
           )}
         </div>
 
@@ -123,19 +111,13 @@ function JobDetail() {
         )}
 
         <div className="mt-8">
-          {job.isOpen ? (
-            <button
-              type="button"
-              onClick={() => setApplying(true)}
-              className="flex items-center justify-center gap-2 rounded-xl primary-gradient px-8 py-3 font-bold text-on-primary transition-all hover:brightness-110 active:scale-95"
-            >
-              Lamar Sekarang
-            </button>
-          ) : (
-            <span className="inline-flex items-center justify-center rounded-xl border border-outline-variant px-8 py-3 font-semibold text-on-surface-variant">
-              Pendaftaran Ditutup
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => setApplying(true)}
+            className="flex items-center justify-center gap-2 rounded-xl primary-gradient px-8 py-3 font-bold text-on-primary transition-all hover:brightness-110 active:scale-95"
+          >
+            Lamar Sekarang
+          </button>
         </div>
       </div>
 

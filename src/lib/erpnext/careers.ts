@@ -111,7 +111,12 @@ export const getJobOpenings = createServerFn({ method: "GET" }).handler(
     const res = await erpRequest<{ data: ErpJobOpening[] }>("/api/resource/Job Opening", {
       params: {
         fields: jsonFields(JOB_OPENING_FIELDS),
-        filters: jsonFilters([["publish", "=", 1]]),
+        // Closed openings are never shown on the site at all, not even as
+        // a disabled/"Ditutup" entry.
+        filters: jsonFilters([
+          ["publish", "=", 1],
+          ["status", "=", "Open"],
+        ]),
         order_by: "posted_on desc",
         limit_page_length: "0",
       },
@@ -135,8 +140,10 @@ export const getJobOpening = createServerFn({ method: "GET" })
         { params: { fields: jsonFields(JOB_OPENING_FIELDS) } },
       );
       // A single-record GET can't be filtered server-side, so enforce the
-      // "published only" rule here — same reasoning as the blog post fix.
-      if (!res.data.publish) return null;
+      // "published and still open" rule here — same reasoning as the blog
+      // post fix. A closed opening's detail page is gone entirely, not
+      // just hidden from the list.
+      if (!res.data.publish || res.data.status !== "Open") return null;
       return mapJobOpening(res.data, config.url);
     } catch {
       return null;

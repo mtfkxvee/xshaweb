@@ -26,10 +26,9 @@ export const Route = createFileRoute("/karir")({
 });
 
 function Karir() {
+  // getJobOpenings already only returns published, still-open positions —
+  // closed ones are never shown here at all.
   const jobs = Route.useLoaderData();
-  const openJobs = jobs.filter((j) => j.isOpen);
-  const closedJobs = jobs.filter((j) => !j.isOpen);
-  const sortedJobs = [...openJobs, ...closedJobs];
   const [applyJob, setApplyJob] = useState<JobOpening | null>(null);
 
   return (
@@ -43,7 +42,7 @@ function Karir() {
           </p>
         </header>
 
-        {sortedJobs.length === 0 && (
+        {jobs.length === 0 && (
           <p className="py-16 text-center text-on-surface-variant">
             Belum ada lowongan yang dibuka saat ini. Silakan cek kembali lain waktu.
           </p>
@@ -51,14 +50,12 @@ function Karir() {
 
         <Reveal>
           <div className="flex flex-col gap-4">
-            {sortedJobs.map((job) => (
+            {jobs.map((job) => (
               <Link
                 key={job.id}
                 to="/karir/$jobId"
                 params={{ jobId: job.id }}
-                className={`block rounded-2xl glass-panel p-6 transition-all ${
-                  job.isOpen ? "hover-lift" : "opacity-60"
-                }`}
+                className="block rounded-2xl glass-panel p-6 transition-all hover-lift"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   {job.imageUrl && (
@@ -69,14 +66,8 @@ function Karir() {
                   <div className="flex-grow">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
                       <h2 className="text-headline-md text-on-surface">{job.title}</h2>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ${
-                          job.isOpen
-                            ? "bg-success-container text-success"
-                            : "bg-surface-container-high text-on-surface-variant"
-                        }`}
-                      >
-                        {job.isOpen ? "Dibuka" : "Ditutup"}
+                      <span className="rounded-full bg-success-container px-2.5 py-0.5 text-[11px] font-bold uppercase text-success">
+                        Dibuka
                       </span>
                     </div>
                     <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-on-surface-variant">
@@ -113,23 +104,17 @@ function Karir() {
                     )}
                   </div>
 
-                  {job.isOpen ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setApplyJob(job);
-                      }}
-                      className="flex shrink-0 items-center justify-center gap-2 rounded-xl primary-gradient px-6 py-3 font-bold text-on-primary transition-all hover:brightness-110 active:scale-95"
-                    >
-                      Lamar Sekarang
-                    </button>
-                  ) : (
-                    <span className="flex shrink-0 items-center justify-center rounded-xl border border-outline-variant px-6 py-3 font-semibold text-on-surface-variant">
-                      Pendaftaran Ditutup
-                    </span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setApplyJob(job);
+                    }}
+                    className="flex shrink-0 items-center justify-center gap-2 rounded-xl primary-gradient px-6 py-3 font-bold text-on-primary transition-all hover:brightness-110 active:scale-95"
+                  >
+                    Lamar Sekarang
+                  </button>
                 </div>
               </Link>
             ))}
