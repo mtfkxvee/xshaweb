@@ -3,6 +3,8 @@ import { setResponseHeader } from "@tanstack/react-start/server";
 import { erpRequest, jsonFields, jsonFilters } from "./client";
 import { getErpnextConfig, isErpnextConfigured } from "./config";
 
+const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+
 export type JobOpening = {
   id: string;
   title: string;
@@ -105,3 +107,73 @@ export const getJobOpenings = createServerFn({ method: "GET" }).handler(
     }));
   },
 );
+
+export type SubmitJobApplicationInput = {
+  jobId: string;
+  name: string;
+  email: string;
+  phone: string;
+  coverLetter: string;
+  resume: { fileName: string; mimeType: string; base64: string } | null;
+};
+
+export type SubmitJobApplicationResult = { ok: true } | { ok: false; message: string };
+
+export const submitJobApplication = createServerFn({ method: "POST" })
+  .validator((input: SubmitJobApplicationInput) => input)
+  .handler(async ({ data }): Promise<SubmitJobApplicationResult> => {
+    const config = getErpnextConfig();
+    if (!config) return { ok: false, message: "ERPNext belum dikonfigurasi." };
+
+    if (!data.name.trim() || !data.email.trim()) {
+      return { ok: false, message: "Nama dan email wajib diisi." };
+    }
+    if (data.resume && data.resume.base64.length > MAX_RESUME_BYTES * 1.4) {
+      return { ok: false, message: "Ukuran file CV maksimal 5MB." };
+    }
+
+    try {
+      const created = await erpRequest<{ data: { name: string } }>("/api/resource/Job Applicant", {
+        method: "POST",
+        body: {
+          applicant_name: data.name.trim(),
+          email_id: data.email.trim(),
+          phone_number: data.phone.trim() || null,
+          job_title: data.jobId,
+          cover_letter: data.coverLetter.trim() || null,
+          country: "Indonesia",
+          status: "Open",
+        },
+      });
+
+      if (data.resume) {
+        const bytes = Uint8Array.from(atob(data.resume.base64), (c) => c.charCodeAt(0));
+        const form = new FormData();
+        form.append("is_private", "1");
+        form.append("doctype", "Job Applicant");
+        form.append("docname", created.data.name);
+        form.append("fieldname", "resume_attachment");
+        form.append("file", new Blob([bytes], { type: data.resume.mimeType }), data.resume.fileName);
+
+        // Raw fetch, not erpRequest — file uploads need a multipart body,
+        // which erpRequest only supports as JSON.
+        const uploadRes = await fetch(`${config.url}/api/method/upload_file`, {
+          method: "POST",
+          headers: { Authorization: `token ${config.apiKey}:${config.apiSecret}` },
+          body: form,
+        });
+        if (!uploadRes.ok) {
+          // The application itself is already saved — a resume upload
+          // failure shouldn't be reported as a total failure.
+          return { ok: true };
+        }
+      }
+
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Gagal mengirim lamaran.",
+      };
+    }
+  });
