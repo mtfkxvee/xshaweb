@@ -1,18 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteLayout } from "@/components/site-layout";
+import { Icon } from "@/components/icon";
 import { Reveal } from "@/components/reveal";
-import { getBlogPosts } from "@/lib/erpnext/blog";
+import { getBlogPostsPage } from "@/lib/erpnext/blog";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
+const PAGE_SIZE = 10;
+
 export const Route = createFileRoute("/blog")({
+  validateSearch: (search: Record<string, unknown>): { page?: number } => {
+    const page = Number(search.page);
+    return Number.isInteger(page) && page > 1 ? { page } : {};
+  },
+  loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
   // Runs server-side on the initial request, so the post list (and its
   // links to each article) are present in the raw HTML for crawlers —
   // fetching this client-only left the index page with no discoverable
   // links to any post in the un-hydrated HTML.
-  loader: () => getBlogPosts({ data: { limit: 0 } }),
-  head: () => ({
+  loader: ({ deps }) => getBlogPostsPage({ data: { page: deps.page, pageSize: PAGE_SIZE } }),
+  head: ({ loaderData }) => ({
     meta: [
-      { title: "Blog | X-SHA" },
+      {
+        title:
+          loaderData && loaderData.page > 1
+            ? `Blog | X-SHA — Halaman ${loaderData.page}`
+            : "Blog | X-SHA",
+      },
       { name: "description", content: "Tips, inspirasi, dan cerita seputar produk X-SHA." },
     ],
   }),
@@ -20,8 +33,9 @@ export const Route = createFileRoute("/blog")({
 });
 
 function BlogIndex() {
-  const posts = Route.useLoaderData();
+  const { posts, total, page, pageSize } = Route.useLoaderData();
   const settings = useSiteSettings();
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <SiteLayout>
@@ -72,6 +86,46 @@ function BlogIndex() {
             ))}
           </div>
         </Reveal>
+
+        {totalPages > 1 && (
+          <nav className="mt-stack-lg flex items-center justify-center gap-4">
+            {page > 1 ? (
+              <Link
+                to="/blog"
+                search={page - 1 > 1 ? { page: page - 1 } : {}}
+                className="flex items-center gap-1 rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
+              >
+                <Icon name="chevron_left" className="text-[18px]" />
+                Sebelumnya
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface-variant opacity-40">
+                <Icon name="chevron_left" className="text-[18px]" />
+                Sebelumnya
+              </span>
+            )}
+
+            <span className="text-sm text-on-surface-variant">
+              Halaman {page} dari {totalPages}
+            </span>
+
+            {page < totalPages ? (
+              <Link
+                to="/blog"
+                search={{ page: page + 1 }}
+                className="flex items-center gap-1 rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
+              >
+                Berikutnya
+                <Icon name="chevron_right" className="text-[18px]" />
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface-variant opacity-40">
+                Berikutnya
+                <Icon name="chevron_right" className="text-[18px]" />
+              </span>
+            )}
+          </nav>
+        )}
       </div>
     </SiteLayout>
   );

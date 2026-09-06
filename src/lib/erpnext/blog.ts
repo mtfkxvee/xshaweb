@@ -41,6 +41,56 @@ function mapBlogPost(post: ErpBlogPost, erpBaseUrl: string): BlogPost {
   };
 }
 
+export type BlogPostPage = {
+  posts: BlogPost[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export const getBlogPostsPage = createServerFn({ method: "GET" })
+  .validator((input: { page?: number; pageSize?: number } | undefined) => input)
+  .handler(async ({ data }): Promise<BlogPostPage> => {
+    setResponseHeader("Cache-Control", CACHE_BLOG);
+
+    const pageSize = data?.pageSize ?? 10;
+    const page = Math.max(1, data?.page ?? 1);
+
+    if (!isErpnextConfigured()) return { posts: [], total: 0, page, pageSize };
+
+    const config = getErpnextConfig()!;
+    const filters = [["published", "=", 1]];
+
+    const [listRes, countRes] = await Promise.all([
+      erpRequest<{ data: ErpBlogPost[] }>("/api/resource/Blog Post", {
+        params: {
+          fields: jsonFields([
+            "name",
+            "title",
+            "blog_intro",
+            "meta_image",
+            "blog_category",
+            "published_on",
+          ]),
+          filters: jsonFilters(filters),
+          order_by: "published_on desc",
+          limit_start: String((page - 1) * pageSize),
+          limit_page_length: String(pageSize),
+        },
+      }),
+      erpRequest<{ message: number }>("/api/method/frappe.client.get_count", {
+        params: { doctype: "Blog Post", filters: jsonFilters(filters) },
+      }),
+    ]);
+
+    return {
+      posts: listRes.data.map((post) => mapBlogPost(post, config.url)),
+      total: countRes.message,
+      page,
+      pageSize,
+    };
+  });
+
 export const getBlogPosts = createServerFn({ method: "GET" })
   .validator((input: { limit?: number } | undefined) => input)
   .handler(async ({ data }): Promise<BlogPost[]> => {

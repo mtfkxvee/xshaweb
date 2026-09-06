@@ -169,12 +169,7 @@ function Beranda() {
                         search={{ rule: b.id }}
                         className="block overflow-hidden rounded-2xl glass-panel transition-transform hover:scale-[1.02]"
                       >
-                        <img
-                          src={b.image}
-                          alt={b.title}
-                          loading="lazy"
-                          className="aspect-square h-full w-full object-cover"
-                        />
+                        <img src={b.image} alt={b.title} loading="lazy" className="h-auto w-full" />
                       </Link>
                     </CarouselItem>
                   ))}
