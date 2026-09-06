@@ -44,7 +44,8 @@ function Karir() {
 
         {jobs.length === 0 && (
           <p className="py-16 text-center text-on-surface-variant">
-            Belum ada lowongan yang dibuka saat ini. Silakan cek kembali lain waktu.
+            Saat ini belum ada lowongan yang dibuka. Pantau terus halaman ini untuk kesempatan
+            berkarir di X-SHA berikutnya.
           </p>
         )}
 
