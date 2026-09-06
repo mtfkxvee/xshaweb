@@ -9,7 +9,7 @@ export const Route = createFileRoute("/blog")({
   // links to each article) are present in the raw HTML for crawlers —
   // fetching this client-only left the index page with no discoverable
   // links to any post in the un-hydrated HTML.
-  loader: () => getBlogPosts({ data: { limit: 20 } }),
+  loader: () => getBlogPosts({ data: { limit: 0 } }),
   head: () => ({
     meta: [
       { title: "Blog | X-SHA" },
