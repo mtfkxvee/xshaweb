@@ -53,7 +53,13 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/sitemap.xml") {
       try {
-        const xml = await renderSitemap(url.origin);
+        // request.url reports http:// here in production (something in
+        // front of the Worker terminates TLS and forwards over plain
+        // http), which would otherwise ship Google a sitemap full of
+        // non-canonical http:// URLs. Force https except on localhost.
+        const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+        const origin = isLocalhost ? url.origin : `https://${url.host}`;
+        const xml = await renderSitemap(origin);
         return applySecurityHeaders(
           new Response(xml, {
             headers: {
