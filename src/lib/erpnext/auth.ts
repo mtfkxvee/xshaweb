@@ -12,32 +12,54 @@ import type { CurrentUser } from "./types";
 
 export const SESSION_COOKIE = "xsha_erp_sid";
 
+// Shared by the web login (cookie-based) and the mobile `/api/mobile/auth/login`
+// route (token-based, see routes/api/mobile/auth.login.ts) — both need the
+// same "exchange usr/pwd for an ERPNext sid" step, they just persist the sid
+// differently afterwards.
+export async function authenticateWithErpnext(
+  usr: string,
+  pwd: string,
+): Promise<{ ok: true; sid: string } | { ok: false; message: string }> {
+  const config = getErpnextConfig();
+  if (!config) return { ok: false, message: "ERPNext belum dikonfigurasi." };
+
+  const res = await fetch(`${config.url}/api/method/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ usr, pwd }),
+  });
+
+  if (!res.ok) {
+    return { ok: false, message: "Email atau kata sandi salah." };
+  }
+
+  const setCookieHeader = res.headers.get("set-cookie") ?? "";
+  const sidMatch = setCookieHeader.match(/sid=([^;]+)/);
+  if (!sidMatch || sidMatch[1] === "Guest") {
+    return { ok: false, message: "Gagal memulai sesi ERPNext." };
+  }
+
+  return { ok: true, sid: sidMatch[1] };
+}
+
+export async function endErpnextSession(sid: string): Promise<void> {
+  const config = getErpnextConfig();
+  if (!config) return;
+  await fetch(`${config.url}/api/method/logout`, {
+    headers: { Cookie: `sid=${sid}` },
+  }).catch(() => {});
+}
+
 export const loginCustomer = createServerFn({ method: "POST" })
   .validator((input: { usr: string; pwd: string }) => input)
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; message: string }> => {
-    const config = getErpnextConfig();
-    if (!config) return { ok: false, message: "ERPNext belum dikonfigurasi." };
-
-    const res = await fetch(`${config.url}/api/method/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ usr: data.usr, pwd: data.pwd }),
-    });
-
-    if (!res.ok) {
-      return { ok: false, message: "Email atau kata sandi salah." };
-    }
-
-    const setCookieHeader = res.headers.get("set-cookie") ?? "";
-    const sidMatch = setCookieHeader.match(/sid=([^;]+)/);
-    if (!sidMatch || sidMatch[1] === "Guest") {
-      return { ok: false, message: "Gagal memulai sesi ERPNext." };
-    }
+    const result = await authenticateWithErpnext(data.usr, data.pwd);
+    if (!result.ok) return result;
 
     // `secure: true` unconditionally would make browsers silently drop this
     // cookie on any non-HTTPS origin other than localhost (e.g. previewing
     // over a LAN IP), so it only follows the actual request protocol.
-    setCookie(SESSION_COOKIE, sidMatch[1], {
+    setCookie(SESSION_COOKIE, result.sid, {
       httpOnly: true,
       secure: getRequestProtocol() === "https",
       sameSite: "lax",
@@ -51,29 +73,19 @@ export const loginCustomer = createServerFn({ method: "POST" })
 export const logoutCustomer = createServerFn({ method: "POST" }).handler(
   async (): Promise<{ ok: true }> => {
     const sid = getCookie(SESSION_COOKIE);
-    const config = getErpnextConfig();
-    if (sid && config) {
-      await fetch(`${config.url}/api/method/logout`, {
-        headers: { Cookie: `sid=${sid}` },
-      }).catch(() => {});
-    }
+    if (sid) await endErpnextSession(sid);
     deleteCookie(SESSION_COOKIE, { path: "/" });
     return { ok: true };
   },
 );
 
-export const getCurrentCustomer = createServerFn({ method: "GET" }).handler(
-  async (): Promise<CurrentUser | null> => {
-    // This is a GET server function whose URL never changes (no arguments),
-    // so without an explicit no-store the browser (and any intermediary)
-    // happily serves a cached response from before login/logout forever —
-    // the client then never learns the session state actually changed.
-    setResponseHeader("Cache-Control", "no-store");
+// Extracted so the mobile API routes (which authenticate via a bearer sid
+// instead of a cookie) can resolve the same CurrentUser shape without
+// duplicating the Portal User → Customer lookup below.
+export async function resolveCurrentUser(sid: string | null): Promise<CurrentUser | null> {
+  if (!sid || !isErpnextConfigured()) return null;
 
-    const sid = getCookie(SESSION_COOKIE);
-    if (!sid || !isErpnextConfigured()) return null;
-
-    try {
+  try {
       const userRes = await erpRequest<{ message: string }>(
         "/api/method/frappe.auth.get_logged_user",
         { sid },
@@ -130,8 +142,18 @@ export const getCurrentCustomer = createServerFn({ method: "GET" }).handler(
           birthDate: c.custom_tanggal_lahir,
         },
       };
-    } catch {
-      return null;
-    }
+  } catch {
+    return null;
+  }
+}
+
+export const getCurrentCustomer = createServerFn({ method: "GET" }).handler(
+  async (): Promise<CurrentUser | null> => {
+    // This is a GET server function whose URL never changes (no arguments),
+    // so without an explicit no-store the browser (and any intermediary)
+    // happily serves a cached response from before login/logout forever —
+    // the client then never learns the session state actually changed.
+    setResponseHeader("Cache-Control", "no-store");
+    return resolveCurrentUser(getCookie(SESSION_COOKIE) ?? null);
   },
 );

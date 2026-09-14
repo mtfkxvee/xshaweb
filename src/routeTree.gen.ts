@@ -22,6 +22,18 @@ import { Route as PromoRouteImport } from './routes/promo'
 import { Route as TentangRouteImport } from './routes/tentang'
 import { Route as BlogPostIdRouteImport } from './routes/blog_.$postId'
 import { Route as KarirJobIdRouteImport } from './routes/karir_.$jobId'
+import { Route as ApiMobileImageProxyRouteImport } from './routes/api/mobile/image-proxy'
+import { Route as ApiMobileItemGroupsRouteImport } from './routes/api/mobile/item-groups'
+import { Route as ApiMobileLoyaltyRouteImport } from './routes/api/mobile/loyalty'
+import { Route as ApiMobileOrdersRouteImport } from './routes/api/mobile/orders'
+import { Route as ApiMobileOutletsRouteImport } from './routes/api/mobile/outlets'
+import { Route as ApiMobileProductsRouteImport } from './routes/api/mobile/products'
+import { Route as ApiMobilePromoBannersRouteImport } from './routes/api/mobile/promo-banners'
+import { Route as ApiMobilePromoProductsRouteImport } from './routes/api/mobile/promo-products'
+import { Route as ApiMobileAuthLoginRouteImport } from './routes/api/mobile/auth.login'
+import { Route as ApiMobileAuthLogoutRouteImport } from './routes/api/mobile/auth.logout'
+import { Route as ApiMobileAuthMeRouteImport } from './routes/api/mobile/auth.me'
+import { Route as ApiMobileProductsIdRouteImport } from './routes/api/mobile/products_.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +100,66 @@ const KarirJobIdRoute = KarirJobIdRouteImport.update({
   path: '/karir/$jobId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileImageProxyRoute = ApiMobileImageProxyRouteImport.update({
+  id: '/api/mobile/image-proxy',
+  path: '/api/mobile/image-proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileItemGroupsRoute = ApiMobileItemGroupsRouteImport.update({
+  id: '/api/mobile/item-groups',
+  path: '/api/mobile/item-groups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileLoyaltyRoute = ApiMobileLoyaltyRouteImport.update({
+  id: '/api/mobile/loyalty',
+  path: '/api/mobile/loyalty',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileOrdersRoute = ApiMobileOrdersRouteImport.update({
+  id: '/api/mobile/orders',
+  path: '/api/mobile/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileOutletsRoute = ApiMobileOutletsRouteImport.update({
+  id: '/api/mobile/outlets',
+  path: '/api/mobile/outlets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileProductsRoute = ApiMobileProductsRouteImport.update({
+  id: '/api/mobile/products',
+  path: '/api/mobile/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobilePromoBannersRoute = ApiMobilePromoBannersRouteImport.update({
+  id: '/api/mobile/promo-banners',
+  path: '/api/mobile/promo-banners',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobilePromoProductsRoute = ApiMobilePromoProductsRouteImport.update({
+  id: '/api/mobile/promo-products',
+  path: '/api/mobile/promo-products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileAuthLoginRoute = ApiMobileAuthLoginRouteImport.update({
+  id: '/api/mobile/auth/login',
+  path: '/api/mobile/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileAuthLogoutRoute = ApiMobileAuthLogoutRouteImport.update({
+  id: '/api/mobile/auth/logout',
+  path: '/api/mobile/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileAuthMeRoute = ApiMobileAuthMeRouteImport.update({
+  id: '/api/mobile/auth/me',
+  path: '/api/mobile/auth/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileProductsIdRoute = ApiMobileProductsIdRouteImport.update({
+  id: '/api/mobile/products_/$id',
+  path: '/api/mobile/products/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -103,6 +175,18 @@ export interface FileRoutesByFullPath {
   '/tentang': typeof TentangRoute
   '/blog/$postId': typeof BlogPostIdRoute
   '/karir/$jobId': typeof KarirJobIdRoute
+  '/api/mobile/image-proxy': typeof ApiMobileImageProxyRoute
+  '/api/mobile/item-groups': typeof ApiMobileItemGroupsRoute
+  '/api/mobile/loyalty': typeof ApiMobileLoyaltyRoute
+  '/api/mobile/orders': typeof ApiMobileOrdersRoute
+  '/api/mobile/outlets': typeof ApiMobileOutletsRoute
+  '/api/mobile/products': typeof ApiMobileProductsRoute
+  '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
+  '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
+  '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
+  '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
+  '/api/mobile/products/$id': typeof ApiMobileProductsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +202,18 @@ export interface FileRoutesByTo {
   '/tentang': typeof TentangRoute
   '/blog/$postId': typeof BlogPostIdRoute
   '/karir/$jobId': typeof KarirJobIdRoute
+  '/api/mobile/image-proxy': typeof ApiMobileImageProxyRoute
+  '/api/mobile/item-groups': typeof ApiMobileItemGroupsRoute
+  '/api/mobile/loyalty': typeof ApiMobileLoyaltyRoute
+  '/api/mobile/orders': typeof ApiMobileOrdersRoute
+  '/api/mobile/outlets': typeof ApiMobileOutletsRoute
+  '/api/mobile/products': typeof ApiMobileProductsRoute
+  '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
+  '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
+  '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
+  '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
+  '/api/mobile/products/$id': typeof ApiMobileProductsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +230,18 @@ export interface FileRoutesById {
   '/tentang': typeof TentangRoute
   '/blog_/$postId': typeof BlogPostIdRoute
   '/karir_/$jobId': typeof KarirJobIdRoute
+  '/api/mobile/image-proxy': typeof ApiMobileImageProxyRoute
+  '/api/mobile/item-groups': typeof ApiMobileItemGroupsRoute
+  '/api/mobile/loyalty': typeof ApiMobileLoyaltyRoute
+  '/api/mobile/orders': typeof ApiMobileOrdersRoute
+  '/api/mobile/outlets': typeof ApiMobileOutletsRoute
+  '/api/mobile/products': typeof ApiMobileProductsRoute
+  '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
+  '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
+  '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
+  '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
+  '/api/mobile/products_/$id': typeof ApiMobileProductsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +259,18 @@ export interface FileRouteTypes {
     | '/tentang'
     | '/blog/$postId'
     | '/karir/$jobId'
+    | '/api/mobile/image-proxy'
+    | '/api/mobile/item-groups'
+    | '/api/mobile/loyalty'
+    | '/api/mobile/orders'
+    | '/api/mobile/outlets'
+    | '/api/mobile/products'
+    | '/api/mobile/promo-banners'
+    | '/api/mobile/promo-products'
+    | '/api/mobile/auth/login'
+    | '/api/mobile/auth/logout'
+    | '/api/mobile/auth/me'
+    | '/api/mobile/products/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +286,18 @@ export interface FileRouteTypes {
     | '/tentang'
     | '/blog/$postId'
     | '/karir/$jobId'
+    | '/api/mobile/image-proxy'
+    | '/api/mobile/item-groups'
+    | '/api/mobile/loyalty'
+    | '/api/mobile/orders'
+    | '/api/mobile/outlets'
+    | '/api/mobile/products'
+    | '/api/mobile/promo-banners'
+    | '/api/mobile/promo-products'
+    | '/api/mobile/auth/login'
+    | '/api/mobile/auth/logout'
+    | '/api/mobile/auth/me'
+    | '/api/mobile/products/$id'
   id:
     | '__root__'
     | '/'
@@ -181,6 +313,18 @@ export interface FileRouteTypes {
     | '/tentang'
     | '/blog_/$postId'
     | '/karir_/$jobId'
+    | '/api/mobile/image-proxy'
+    | '/api/mobile/item-groups'
+    | '/api/mobile/loyalty'
+    | '/api/mobile/orders'
+    | '/api/mobile/outlets'
+    | '/api/mobile/products'
+    | '/api/mobile/promo-banners'
+    | '/api/mobile/promo-products'
+    | '/api/mobile/auth/login'
+    | '/api/mobile/auth/logout'
+    | '/api/mobile/auth/me'
+    | '/api/mobile/products_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +341,18 @@ export interface RootRouteChildren {
   TentangRoute: typeof TentangRoute
   BlogPostIdRoute: typeof BlogPostIdRoute
   KarirJobIdRoute: typeof KarirJobIdRoute
+  ApiMobileImageProxyRoute: typeof ApiMobileImageProxyRoute
+  ApiMobileItemGroupsRoute: typeof ApiMobileItemGroupsRoute
+  ApiMobileLoyaltyRoute: typeof ApiMobileLoyaltyRoute
+  ApiMobileOrdersRoute: typeof ApiMobileOrdersRoute
+  ApiMobileOutletsRoute: typeof ApiMobileOutletsRoute
+  ApiMobileProductsRoute: typeof ApiMobileProductsRoute
+  ApiMobilePromoBannersRoute: typeof ApiMobilePromoBannersRoute
+  ApiMobilePromoProductsRoute: typeof ApiMobilePromoProductsRoute
+  ApiMobileAuthLoginRoute: typeof ApiMobileAuthLoginRoute
+  ApiMobileAuthLogoutRoute: typeof ApiMobileAuthLogoutRoute
+  ApiMobileAuthMeRoute: typeof ApiMobileAuthMeRoute
+  ApiMobileProductsIdRoute: typeof ApiMobileProductsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +448,90 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KarirJobIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/image-proxy': {
+      id: '/api/mobile/image-proxy'
+      path: '/api/mobile/image-proxy'
+      fullPath: '/api/mobile/image-proxy'
+      preLoaderRoute: typeof ApiMobileImageProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/item-groups': {
+      id: '/api/mobile/item-groups'
+      path: '/api/mobile/item-groups'
+      fullPath: '/api/mobile/item-groups'
+      preLoaderRoute: typeof ApiMobileItemGroupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/loyalty': {
+      id: '/api/mobile/loyalty'
+      path: '/api/mobile/loyalty'
+      fullPath: '/api/mobile/loyalty'
+      preLoaderRoute: typeof ApiMobileLoyaltyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/orders': {
+      id: '/api/mobile/orders'
+      path: '/api/mobile/orders'
+      fullPath: '/api/mobile/orders'
+      preLoaderRoute: typeof ApiMobileOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/outlets': {
+      id: '/api/mobile/outlets'
+      path: '/api/mobile/outlets'
+      fullPath: '/api/mobile/outlets'
+      preLoaderRoute: typeof ApiMobileOutletsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/products': {
+      id: '/api/mobile/products'
+      path: '/api/mobile/products'
+      fullPath: '/api/mobile/products'
+      preLoaderRoute: typeof ApiMobileProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/promo-banners': {
+      id: '/api/mobile/promo-banners'
+      path: '/api/mobile/promo-banners'
+      fullPath: '/api/mobile/promo-banners'
+      preLoaderRoute: typeof ApiMobilePromoBannersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/promo-products': {
+      id: '/api/mobile/promo-products'
+      path: '/api/mobile/promo-products'
+      fullPath: '/api/mobile/promo-products'
+      preLoaderRoute: typeof ApiMobilePromoProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/auth/login': {
+      id: '/api/mobile/auth/login'
+      path: '/api/mobile/auth/login'
+      fullPath: '/api/mobile/auth/login'
+      preLoaderRoute: typeof ApiMobileAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/auth/logout': {
+      id: '/api/mobile/auth/logout'
+      path: '/api/mobile/auth/logout'
+      fullPath: '/api/mobile/auth/logout'
+      preLoaderRoute: typeof ApiMobileAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/auth/me': {
+      id: '/api/mobile/auth/me'
+      path: '/api/mobile/auth/me'
+      fullPath: '/api/mobile/auth/me'
+      preLoaderRoute: typeof ApiMobileAuthMeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/products_/$id': {
+      id: '/api/mobile/products_/$id'
+      path: '/api/mobile/products/$id'
+      fullPath: '/api/mobile/products/$id'
+      preLoaderRoute: typeof ApiMobileProductsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -309,6 +549,18 @@ const rootRouteChildren: RootRouteChildren = {
   TentangRoute: TentangRoute,
   BlogPostIdRoute: BlogPostIdRoute,
   KarirJobIdRoute: KarirJobIdRoute,
+  ApiMobileImageProxyRoute: ApiMobileImageProxyRoute,
+  ApiMobileItemGroupsRoute: ApiMobileItemGroupsRoute,
+  ApiMobileLoyaltyRoute: ApiMobileLoyaltyRoute,
+  ApiMobileOrdersRoute: ApiMobileOrdersRoute,
+  ApiMobileOutletsRoute: ApiMobileOutletsRoute,
+  ApiMobileProductsRoute: ApiMobileProductsRoute,
+  ApiMobilePromoBannersRoute: ApiMobilePromoBannersRoute,
+  ApiMobilePromoProductsRoute: ApiMobilePromoProductsRoute,
+  ApiMobileAuthLoginRoute: ApiMobileAuthLoginRoute,
+  ApiMobileAuthLogoutRoute: ApiMobileAuthLogoutRoute,
+  ApiMobileAuthMeRoute: ApiMobileAuthMeRoute,
+  ApiMobileProductsIdRoute: ApiMobileProductsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
