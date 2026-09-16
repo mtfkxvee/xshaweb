@@ -15,3 +15,12 @@ export function getErpnextConfig(): ErpnextConfig | null {
 export function isErpnextConfigured(): boolean {
   return getErpnextConfig() !== null;
 }
+
+export type GoogleOAuthConfig = { clientId: string; clientSecret: string };
+
+export function getGoogleOAuthConfig(): GoogleOAuthConfig | null {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
