@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { loginOrSignupWithGoogle } from "@/lib/erpnext/google-auth";
+import { loginOrSignupWithGoogle, resolveRequestOrigin } from "@/lib/erpnext/google-auth";
 
 // Google redirects here after the user approves (or cancels) consent. We
 // finish the OAuth code exchange + sign-in/sign-up server-side, then hand
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/api/mobile/auth/google/callback")({
           return Response.redirect(`xsha://auth?ok=0&message=${encodeURIComponent("Kode Google tidak ditemukan.")}`, 302);
         }
 
-        const redirectUri = `${url.origin}/api/mobile/auth/google/callback`;
+        const redirectUri = `${resolveRequestOrigin(request)}/api/mobile/auth/google/callback`;
         const result = await loginOrSignupWithGoogle(code, redirectUri);
 
         if (!result.ok) {

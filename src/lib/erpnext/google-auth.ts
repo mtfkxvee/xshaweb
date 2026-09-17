@@ -4,6 +4,20 @@ import { getGoogleOAuthConfig, isErpnextConfigured } from "./config";
 
 const CALLBACK_URL_PATH = "/api/mobile/auth/google/callback";
 
+// Cloudflare terminates TLS in front of this server, and the Cloudflare→
+// nginx→node hop behind it is plain http — so request.url's own origin
+// resolves to http://x-sha.id, which Google rejects since it must match the
+// https:// URI registered in Google Cloud Console byte-for-byte (same root
+// cause as the earlier ERPNext host_name bug). This is only ever deployed
+// behind https in production, so force it — localhost keeps http for local
+// dev testing.
+export function resolveRequestOrigin(request: Request): string {
+  const url = new URL(request.url);
+  const isLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  const proto = isLocal ? url.protocol.replace(":", "") : "https";
+  return `${proto}://${url.host}`;
+}
+
 // Builds the "Sign in with Google" URL the mobile app opens in an in-app
 // browser. Google redirects back to our own callback below (registered as
 // a second Authorized redirect URI on the same Web OAuth client ERPNext's
