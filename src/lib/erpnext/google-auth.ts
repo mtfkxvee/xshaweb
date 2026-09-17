@@ -134,7 +134,7 @@ async function provisionNewCustomer(email: string, name: string): Promise<void> 
 }
 
 export type GoogleLoginResult =
-  | { ok: true; sid: string }
+  | { ok: true; sid: string; isNewSignup: boolean }
   | { ok: false; message: string };
 
 // The whole "sign in / sign up with Google" flow: exchange the code,
@@ -156,12 +156,15 @@ export async function loginOrSignupWithGoogle(
 
   try {
     const existingUser = await findUserByEmail(email);
+    let isNewSignup = false;
     if (!existingUser) {
       await provisionNewCustomer(email, profile.name ?? "");
+      isNewSignup = true;
     } else if (!(await customerExistsForEmail(email))) {
       // A Frappe User already exists (e.g. an internal account) but has no
       // linked Customer yet — link one instead of erroring out.
       await provisionNewCustomer(email, profile.name ?? "");
+      isNewSignup = true;
     }
 
     const randomPassword = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}Aa1!`;
@@ -172,7 +175,7 @@ export async function loginOrSignupWithGoogle(
 
     const loginResult = await authenticateWithErpnext(email, randomPassword);
     if (!loginResult.ok) return { ok: false, message: loginResult.message };
-    return { ok: true, sid: loginResult.sid };
+    return { ok: true, sid: loginResult.sid, isNewSignup };
   } catch (error) {
     return {
       ok: false,

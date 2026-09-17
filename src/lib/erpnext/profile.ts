@@ -43,16 +43,76 @@ export const getMyAddress = createServerFn({ method: "GET" }).handler(
   },
 );
 
+export type ProfileUpdateInput = {
+  name: string;
+  mobile: string;
+  birthDate?: string;
+  addressLine1: string;
+  city: string;
+};
+
+// Shared by the web's edit-profile form (cookie session, below) and the
+// mobile app's own routes (bearer sid) — both just need "write these fields
+// onto this customer" once the caller has already verified who's asking.
+export async function applyProfileUpdate(
+  customerId: string,
+  data: ProfileUpdateInput,
+): Promise<UpdateProfileResult> {
+  try {
+    // Writes with the admin API key, scoped to this verified customer's own
+    // id — same reasoning as elsewhere in this integration: a portal
+    // customer's own role typically has no write permission on Customer or
+    // Address.
+    await erpRequest(`/api/resource/Customer/${encodeURIComponent(customerId)}`, {
+      method: "PUT",
+      body: {
+        customer_name: data.name,
+        mobile_no: data.mobile,
+        custom_tanggal_lahir: data.birthDate || null,
+      },
+    });
+
+    if (data.addressLine1 && data.city) {
+      const existing = await erpRequest<{ data: { name: string }[] }>("/api/resource/Address", {
+        params: {
+          fields: jsonFields(["name"]),
+          filters: jsonFilters([
+            ["Dynamic Link", "link_doctype", "=", "Customer"],
+            ["Dynamic Link", "link_name", "=", customerId],
+          ]),
+          limit_page_length: "1",
+        },
+      });
+
+      if (existing.data[0]) {
+        await erpRequest(`/api/resource/Address/${encodeURIComponent(existing.data[0].name)}`, {
+          method: "PUT",
+          body: { address_line1: data.addressLine1, city: data.city },
+        });
+      } else {
+        await erpRequest("/api/resource/Address", {
+          method: "POST",
+          body: {
+            address_title: data.name,
+            address_type: "Personal",
+            address_line1: data.addressLine1,
+            city: data.city,
+            country: COUNTRY,
+            is_primary_address: 1,
+            links: [{ link_doctype: "Customer", link_name: customerId }],
+          },
+        });
+      }
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Gagal menyimpan." };
+  }
+}
+
 export const updateMyProfile = createServerFn({ method: "POST" })
-  .validator(
-    (input: {
-      name: string;
-      mobile: string;
-      birthDate: string;
-      addressLine1: string;
-      city: string;
-    }) => input,
-  )
+  .validator((input: ProfileUpdateInput) => input)
   .handler(async ({ data }): Promise<UpdateProfileResult> => {
     if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
 
@@ -62,55 +122,5 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     const auth = await getCurrentCustomer();
     if (!auth?.customer) return { ok: false, message: "Anda belum masuk." };
 
-    try {
-      // Writes with the admin API key, scoped to this verified customer's
-      // own id — same reasoning as elsewhere in this integration: a portal
-      // customer's own role typically has no write permission on Customer
-      // or Address.
-      await erpRequest(`/api/resource/Customer/${encodeURIComponent(auth.customer.id)}`, {
-        method: "PUT",
-        body: {
-          customer_name: data.name,
-          mobile_no: data.mobile,
-          custom_tanggal_lahir: data.birthDate || null,
-        },
-      });
-
-      if (data.addressLine1 && data.city) {
-        const existing = await erpRequest<{ data: { name: string }[] }>("/api/resource/Address", {
-          params: {
-            fields: jsonFields(["name"]),
-            filters: jsonFilters([
-              ["Dynamic Link", "link_doctype", "=", "Customer"],
-              ["Dynamic Link", "link_name", "=", auth.customer.id],
-            ]),
-            limit_page_length: "1",
-          },
-        });
-
-        if (existing.data[0]) {
-          await erpRequest(`/api/resource/Address/${encodeURIComponent(existing.data[0].name)}`, {
-            method: "PUT",
-            body: { address_line1: data.addressLine1, city: data.city },
-          });
-        } else {
-          await erpRequest("/api/resource/Address", {
-            method: "POST",
-            body: {
-              address_title: data.name,
-              address_type: "Personal",
-              address_line1: data.addressLine1,
-              city: data.city,
-              country: COUNTRY,
-              is_primary_address: 1,
-              links: [{ link_doctype: "Customer", link_name: auth.customer.id }],
-            },
-          });
-        }
-      }
-
-      return { ok: true };
-    } catch (error) {
-      return { ok: false, message: error instanceof Error ? error.message : "Gagal menyimpan." };
-    }
+    return applyProfileUpdate(auth.customer.id, data);
   });

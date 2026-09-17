@@ -30,6 +30,7 @@ import { Route as ApiMobileOutletsRouteImport } from './routes/api/mobile/outlet
 import { Route as ApiMobileProductsRouteImport } from './routes/api/mobile/products'
 import { Route as ApiMobilePromoBannersRouteImport } from './routes/api/mobile/promo-banners'
 import { Route as ApiMobilePromoProductsRouteImport } from './routes/api/mobile/promo-products'
+import { Route as ApiMobileAuthCompleteProfileRouteImport } from './routes/api/mobile/auth.complete-profile'
 import { Route as ApiMobileAuthLoginRouteImport } from './routes/api/mobile/auth.login'
 import { Route as ApiMobileAuthLogoutRouteImport } from './routes/api/mobile/auth.logout'
 import { Route as ApiMobileAuthMeRouteImport } from './routes/api/mobile/auth.me'
@@ -142,6 +143,12 @@ const ApiMobilePromoProductsRoute = ApiMobilePromoProductsRouteImport.update({
   path: '/api/mobile/promo-products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileAuthCompleteProfileRoute =
+  ApiMobileAuthCompleteProfileRouteImport.update({
+    id: '/api/mobile/auth/complete-profile',
+    path: '/api/mobile/auth/complete-profile',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiMobileAuthLoginRoute = ApiMobileAuthLoginRouteImport.update({
   id: '/api/mobile/auth/login',
   path: '/api/mobile/auth/login',
@@ -197,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
   '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
   '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
@@ -256,6 +265,7 @@ export interface FileRoutesById {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
   '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
     | '/api/mobile/auth/me'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
     | '/api/mobile/auth/me'
@@ -345,6 +357,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
     | '/api/mobile/auth/me'
@@ -375,6 +388,7 @@ export interface RootRouteChildren {
   ApiMobileProductsRoute: typeof ApiMobileProductsRoute
   ApiMobilePromoBannersRoute: typeof ApiMobilePromoBannersRoute
   ApiMobilePromoProductsRoute: typeof ApiMobilePromoProductsRoute
+  ApiMobileAuthCompleteProfileRoute: typeof ApiMobileAuthCompleteProfileRoute
   ApiMobileAuthLoginRoute: typeof ApiMobileAuthLoginRoute
   ApiMobileAuthLogoutRoute: typeof ApiMobileAuthLogoutRoute
   ApiMobileAuthMeRoute: typeof ApiMobileAuthMeRoute
@@ -532,6 +546,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobilePromoProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/auth/complete-profile': {
+      id: '/api/mobile/auth/complete-profile'
+      path: '/api/mobile/auth/complete-profile'
+      fullPath: '/api/mobile/auth/complete-profile'
+      preLoaderRoute: typeof ApiMobileAuthCompleteProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/auth/login': {
       id: '/api/mobile/auth/login'
       path: '/api/mobile/auth/login'
@@ -599,6 +620,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileProductsRoute: ApiMobileProductsRoute,
   ApiMobilePromoBannersRoute: ApiMobilePromoBannersRoute,
   ApiMobilePromoProductsRoute: ApiMobilePromoProductsRoute,
+  ApiMobileAuthCompleteProfileRoute: ApiMobileAuthCompleteProfileRoute,
   ApiMobileAuthLoginRoute: ApiMobileAuthLoginRoute,
   ApiMobileAuthLogoutRoute: ApiMobileAuthLogoutRoute,
   ApiMobileAuthMeRoute: ApiMobileAuthMeRoute,

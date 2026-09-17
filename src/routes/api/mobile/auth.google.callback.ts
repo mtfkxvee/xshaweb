@@ -28,7 +28,11 @@ export const Route = createFileRoute("/api/mobile/auth/google/callback")({
         if (!result.ok) {
           return Response.redirect(`xsha://auth?ok=0&message=${encodeURIComponent(result.message)}`, 302);
         }
-        return Response.redirect(`xsha://auth?ok=1&token=${encodeURIComponent(result.sid)}`, 302);
+        const isNewParam = result.isNewSignup ? "&isNew=1" : "";
+        return Response.redirect(
+          `xsha://auth?ok=1&token=${encodeURIComponent(result.sid)}${isNewParam}`,
+          302,
+        );
       },
     },
   },
