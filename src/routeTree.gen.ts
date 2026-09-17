@@ -34,6 +34,7 @@ import { Route as ApiMobileAuthCompleteProfileRouteImport } from './routes/api/m
 import { Route as ApiMobileAuthLoginRouteImport } from './routes/api/mobile/auth.login'
 import { Route as ApiMobileAuthLogoutRouteImport } from './routes/api/mobile/auth.logout'
 import { Route as ApiMobileAuthMeRouteImport } from './routes/api/mobile/auth.me'
+import { Route as ApiMobileOrdersIdRouteImport } from './routes/api/mobile/orders_.$id'
 import { Route as ApiMobileProductsIdRouteImport } from './routes/api/mobile/products_.$id'
 import { Route as ApiMobileAuthGoogleCallbackRouteImport } from './routes/api/mobile/auth.google.callback'
 import { Route as ApiMobileAuthGoogleStartRouteImport } from './routes/api/mobile/auth.google.start'
@@ -165,6 +166,11 @@ const ApiMobileAuthMeRoute = ApiMobileAuthMeRouteImport.update({
   path: '/api/mobile/auth/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileOrdersIdRoute = ApiMobileOrdersIdRouteImport.update({
+  id: '/api/mobile/orders_/$id',
+  path: '/api/mobile/orders/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMobileProductsIdRoute = ApiMobileProductsIdRouteImport.update({
   id: '/api/mobile/products_/$id',
   path: '/api/mobile/products/$id',
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
   '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
+  '/api/mobile/orders/$id': typeof ApiMobileOrdersIdRoute
   '/api/mobile/products/$id': typeof ApiMobileProductsIdRoute
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
   '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
+  '/api/mobile/orders/$id': typeof ApiMobileOrdersIdRoute
   '/api/mobile/products/$id': typeof ApiMobileProductsIdRoute
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
   '/api/mobile/auth/me': typeof ApiMobileAuthMeRoute
+  '/api/mobile/orders_/$id': typeof ApiMobileOrdersIdRoute
   '/api/mobile/products_/$id': typeof ApiMobileProductsIdRoute
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
     | '/api/mobile/auth/me'
+    | '/api/mobile/orders/$id'
     | '/api/mobile/products/$id'
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
@@ -341,6 +351,7 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
     | '/api/mobile/auth/me'
+    | '/api/mobile/orders/$id'
     | '/api/mobile/products/$id'
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
     | '/api/mobile/auth/me'
+    | '/api/mobile/orders_/$id'
     | '/api/mobile/products_/$id'
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
@@ -404,6 +416,7 @@ export interface RootRouteChildren {
   ApiMobileAuthLoginRoute: typeof ApiMobileAuthLoginRoute
   ApiMobileAuthLogoutRoute: typeof ApiMobileAuthLogoutRoute
   ApiMobileAuthMeRoute: typeof ApiMobileAuthMeRoute
+  ApiMobileOrdersIdRoute: typeof ApiMobileOrdersIdRoute
   ApiMobileProductsIdRoute: typeof ApiMobileProductsIdRoute
   ApiMobileAuthGoogleCallbackRoute: typeof ApiMobileAuthGoogleCallbackRoute
   ApiMobileAuthGoogleStartRoute: typeof ApiMobileAuthGoogleStartRoute
@@ -587,6 +600,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileAuthMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/orders_/$id': {
+      id: '/api/mobile/orders_/$id'
+      path: '/api/mobile/orders/$id'
+      fullPath: '/api/mobile/orders/$id'
+      preLoaderRoute: typeof ApiMobileOrdersIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/products_/$id': {
       id: '/api/mobile/products_/$id'
       path: '/api/mobile/products/$id'
@@ -644,6 +664,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileAuthLoginRoute: ApiMobileAuthLoginRoute,
   ApiMobileAuthLogoutRoute: ApiMobileAuthLogoutRoute,
   ApiMobileAuthMeRoute: ApiMobileAuthMeRoute,
+  ApiMobileOrdersIdRoute: ApiMobileOrdersIdRoute,
   ApiMobileProductsIdRoute: ApiMobileProductsIdRoute,
   ApiMobileAuthGoogleCallbackRoute: ApiMobileAuthGoogleCallbackRoute,
   ApiMobileAuthGoogleStartRoute: ApiMobileAuthGoogleStartRoute,

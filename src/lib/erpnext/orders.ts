@@ -4,7 +4,7 @@ import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
 import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
 import { mockOrders } from "./mock-data";
-import type { Customer, Order, OrderLine } from "./types";
+import type { Customer, Order, OrderDetail, OrderLine } from "./types";
 
 const COMPANY = "X-SHA";
 const CURRENCY = "IDR";
@@ -122,6 +122,52 @@ export async function resolveOrders(customer: Customer | null): Promise<Order[]>
     status: inv.status,
     total: inv.grand_total,
   }));
+}
+
+// A single invoice's full detail (line items included) — GETting one
+// Sales Invoice by name returns its whole document, child tables and all,
+// so no extra dotted-field trickery is needed the way list queries need.
+// We still re-check ownership ourselves since ERPNext's REST API doesn't
+// scope a single-doc GET to "only if this session/customer owns it" ---
+// wrong result here would leak another customer's purchase to a guessed id.
+export async function resolveOrderDetail(
+  customer: Customer | null,
+  orderId: string,
+): Promise<OrderDetail | null> {
+  if (!isErpnextConfigured() || !customer) return null;
+
+  try {
+    const res = await erpRequest<{
+      data: {
+        name: string;
+        posting_date: string;
+        status: string;
+        grand_total: number;
+        customer: string;
+        items: { item_code: string; item_name: string; qty: number; rate: number; amount: number; uom: string }[];
+      };
+    }>(`/api/resource/Sales Invoice/${encodeURIComponent(orderId)}`);
+
+    const inv = res.data;
+    if (inv.customer !== customer.id) return null;
+
+    return {
+      id: inv.name,
+      date: inv.posting_date,
+      status: inv.status,
+      total: inv.grand_total,
+      items: inv.items.map((it) => ({
+        itemCode: it.item_code,
+        itemName: it.item_name,
+        qty: it.qty,
+        rate: it.rate,
+        amount: it.amount,
+        uom: it.uom,
+      })),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export const getMyOrders = createServerFn({ method: "GET" }).handler(async (): Promise<Order[]> => {
