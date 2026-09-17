@@ -18,13 +18,43 @@ export function resolveRequestOrigin(request: Request): string {
   return `${proto}://${url.host}`;
 }
 
+// The app can't always redirect back to a fixed "xsha://" URL — Expo Go
+// (used for local dev testing) has no way to register that scheme with the
+// OS, so it hands us an "exp://<lan-ip>:8081/--/auth" URL instead. Google's
+// `state` param round-trips untouched through the whole flow, so we stash
+// whatever the app asked for there and read it back in the callback. Only
+// our own app ever legitimately supplies this, but validate it anyway so a
+// crafted link can't turn this into an open redirect for the sid token.
+function isAllowedClientRedirect(url: string): boolean {
+  try {
+    const scheme = new URL(url).protocol.replace(":", "");
+    return scheme === "xsha" || scheme.startsWith("exp");
+  } catch {
+    return false;
+  }
+}
+
+const DEFAULT_APP_REDIRECT = "xsha://auth";
+
+// Builds the final hand-back URL to the app once we're done — either the
+// exact return URL the app asked for via `state` (validated above), or the
+// production "xsha://auth" scheme if that's missing/invalid (an old app
+// build that predates `client_redirect`, or a request that skipped
+// /google/start entirely).
+export function buildAppRedirect(state: string | null, params: Record<string, string>): string {
+  const base = state && isAllowedClientRedirect(state) ? state : DEFAULT_APP_REDIRECT;
+  const url = new URL(base);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return url.toString();
+}
+
 // Builds the "Sign in with Google" URL the mobile app opens in an in-app
 // browser. Google redirects back to our own callback below (registered as
 // a second Authorized redirect URI on the same Web OAuth client ERPNext's
 // Social Login Key already uses) — not to ERPNext's own OAuth callback,
 // since that one only knows how to finish the flow with a cookie session,
 // which a mobile app has no use for.
-export function buildGoogleAuthUrl(origin: string): string | null {
+export function buildGoogleAuthUrl(origin: string, clientRedirect: string | null): string | null {
   const google = getGoogleOAuthConfig();
   if (!google) return null;
 
@@ -35,6 +65,9 @@ export function buildGoogleAuthUrl(origin: string): string | null {
     scope: "openid email profile",
     prompt: "select_account",
   });
+  if (clientRedirect && isAllowedClientRedirect(clientRedirect)) {
+    params.set("state", clientRedirect);
+  }
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
@@ -99,11 +132,7 @@ async function customerExistsForEmail(email: string): Promise<boolean> {
   return res.data.length > 0;
 }
 
-// Creates the Frappe User + Customer + Portal User link a brand-new Google
-// sign-up needs — this is the actual "daftar" (registration) half of the
-// flow. Existing customers just fall straight through to the password-reset
-// step below.
-async function provisionNewCustomer(email: string, name: string): Promise<void> {
+async function createErpUser(email: string, name: string): Promise<void> {
   await erpRequest("/api/resource/User", {
     method: "POST",
     body: {
@@ -114,16 +143,67 @@ async function provisionNewCustomer(email: string, name: string): Promise<void> 
       roles: [{ role: "Customer" }],
     },
   });
+}
 
-  const customerRes = await erpRequest<{ data: { name: string } }>("/api/resource/Customer", {
-    method: "POST",
-    body: {
-      customer_name: name || email,
-      customer_type: "Individual",
-      customer_group: "MEMBER",
-      portal_users: [{ user: email }],
+const APP_CUSTOMER_CODE_PREFIX = "XAPP";
+const APP_CUSTOMER_CODE_DIGITS = 5;
+
+// Every Customer needs a unique custom_kode_pelanggan ("Kode Pelanggan") —
+// in-store signups get one from a physical membership card (format
+// "XSA#####"), but there's no card for an online Google sign-up. This
+// mints a separate, non-colliding series (XAPP00001, XAPP00002, ...) just
+// for accounts created through the app.
+async function nextAppCustomerCode(): Promise<string> {
+  const res = await erpRequest<{ data: { custom_kode_pelanggan: string }[] }>(
+    "/api/resource/Customer",
+    {
+      params: {
+        fields: jsonFields(["custom_kode_pelanggan"]),
+        filters: jsonFilters([
+          ["custom_kode_pelanggan", "like", `${APP_CUSTOMER_CODE_PREFIX}%`],
+        ]),
+        order_by: "custom_kode_pelanggan desc",
+        limit_page_length: "1",
+      },
     },
-  });
+  );
+
+  const last = res.data[0]?.custom_kode_pelanggan;
+  const lastNumber = last ? Number(last.slice(APP_CUSTOMER_CODE_PREFIX.length)) : 0;
+  const next = (Number.isFinite(lastNumber) ? lastNumber : 0) + 1;
+  return `${APP_CUSTOMER_CODE_PREFIX}${String(next).padStart(APP_CUSTOMER_CODE_DIGITS, "0")}`;
+}
+
+// Creates the Customer + Portal User link a brand-new Google sign-up
+// needs — this is the actual "daftar" (registration) half of the flow.
+// Retries a handful of times on a code collision (two sign-ups racing for
+// the same next number) rather than failing the whole sign-up over it.
+async function provisionNewCustomer(email: string, name: string): Promise<void> {
+  let customerRes: { data: { name: string } } | null = null;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 5 && !customerRes; attempt++) {
+    const kodePelanggan = await nextAppCustomerCode();
+    try {
+      customerRes = await erpRequest<{ data: { name: string } }>("/api/resource/Customer", {
+        method: "POST",
+        body: {
+          customer_name: name || email,
+          customer_type: "Individual",
+          customer_group: "MEMBER",
+          custom_kode_pelanggan: kodePelanggan,
+          portal_users: [{ user: email }],
+        },
+      });
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : "";
+      if (!message.includes("custom_kode_pelanggan") && !message.includes("DuplicateEntryError")) {
+        throw error;
+      }
+    }
+  }
+  if (!customerRes) throw lastError instanceof Error ? lastError : new Error("Gagal membuat pelanggan.");
 
   // Loyalty enrollment mirrors what the existing member base already has
   // (Loyalty Program "MEMBER") so a Google sign-up isn't missing it.
@@ -156,16 +236,13 @@ export async function loginOrSignupWithGoogle(
 
   try {
     const existingUser = await findUserByEmail(email);
-    let isNewSignup = false;
-    if (!existingUser) {
-      await provisionNewCustomer(email, profile.name ?? "");
-      isNewSignup = true;
-    } else if (!(await customerExistsForEmail(email))) {
-      // A Frappe User already exists (e.g. an internal account) but has no
-      // linked Customer yet — link one instead of erroring out.
-      await provisionNewCustomer(email, profile.name ?? "");
-      isNewSignup = true;
-    }
+    if (!existingUser) await createErpUser(email, profile.name ?? "");
+
+    // Either a brand-new User (just created above) or an existing one that
+    // never got a Customer linked (e.g. a previous sign-up attempt that
+    // failed after the User was created) — either way, it still needs one.
+    const isNewSignup = !(await customerExistsForEmail(email));
+    if (isNewSignup) await provisionNewCustomer(email, profile.name ?? "");
 
     const randomPassword = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}Aa1!`;
     await erpRequest(`/api/resource/User/${encodeURIComponent(email)}`, {

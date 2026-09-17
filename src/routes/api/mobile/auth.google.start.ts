@@ -9,7 +9,8 @@ export const Route = createFileRoute("/api/mobile/auth/google/start")({
     handlers: {
       GET: async ({ request }) => {
         const origin = resolveRequestOrigin(request);
-        const authUrl = buildGoogleAuthUrl(origin);
+        const clientRedirect = new URL(request.url).searchParams.get("client_redirect");
+        const authUrl = buildGoogleAuthUrl(origin, clientRedirect);
         if (!authUrl) return new Response("Google OAuth belum dikonfigurasi.", { status: 503 });
         return Response.redirect(authUrl, 302);
       },
