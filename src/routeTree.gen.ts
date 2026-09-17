@@ -37,6 +37,7 @@ import { Route as ApiMobileAuthMeRouteImport } from './routes/api/mobile/auth.me
 import { Route as ApiMobileProductsIdRouteImport } from './routes/api/mobile/products_.$id'
 import { Route as ApiMobileAuthGoogleCallbackRouteImport } from './routes/api/mobile/auth.google.callback'
 import { Route as ApiMobileAuthGoogleStartRouteImport } from './routes/api/mobile/auth.google.start'
+import { Route as ApiMobileAuthMeAddressRouteImport } from './routes/api/mobile/auth.me_.address'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -181,6 +182,11 @@ const ApiMobileAuthGoogleStartRoute =
     path: '/api/mobile/auth/google/start',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiMobileAuthMeAddressRoute = ApiMobileAuthMeAddressRouteImport.update({
+  id: '/api/mobile/auth/me_/address',
+  path: '/api/mobile/auth/me/address',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -211,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/products/$id': typeof ApiMobileProductsIdRoute
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
+  '/api/mobile/auth/me/address': typeof ApiMobileAuthMeAddressRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByTo {
   '/api/mobile/products/$id': typeof ApiMobileProductsIdRoute
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
+  '/api/mobile/auth/me/address': typeof ApiMobileAuthMeAddressRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -272,6 +280,7 @@ export interface FileRoutesById {
   '/api/mobile/products_/$id': typeof ApiMobileProductsIdRoute
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
+  '/api/mobile/auth/me_/address': typeof ApiMobileAuthMeAddressRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -304,6 +313,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products/$id'
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
+    | '/api/mobile/auth/me/address'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products/$id'
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
+    | '/api/mobile/auth/me/address'
   id:
     | '__root__'
     | '/'
@@ -364,6 +375,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products_/$id'
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
+    | '/api/mobile/auth/me_/address'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -395,6 +407,7 @@ export interface RootRouteChildren {
   ApiMobileProductsIdRoute: typeof ApiMobileProductsIdRoute
   ApiMobileAuthGoogleCallbackRoute: typeof ApiMobileAuthGoogleCallbackRoute
   ApiMobileAuthGoogleStartRoute: typeof ApiMobileAuthGoogleStartRoute
+  ApiMobileAuthMeAddressRoute: typeof ApiMobileAuthMeAddressRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -595,6 +608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileAuthGoogleStartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/auth/me_/address': {
+      id: '/api/mobile/auth/me_/address'
+      path: '/api/mobile/auth/me/address'
+      fullPath: '/api/mobile/auth/me/address'
+      preLoaderRoute: typeof ApiMobileAuthMeAddressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -627,6 +647,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileProductsIdRoute: ApiMobileProductsIdRoute,
   ApiMobileAuthGoogleCallbackRoute: ApiMobileAuthGoogleCallbackRoute,
   ApiMobileAuthGoogleStartRoute: ApiMobileAuthGoogleStartRoute,
+  ApiMobileAuthMeAddressRoute: ApiMobileAuthMeAddressRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

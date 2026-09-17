@@ -110,6 +110,7 @@ export async function resolveCurrentUser(sid: string | null): Promise<CurrentUse
           email_id: string | null;
           loyalty_program: string | null;
           custom_tanggal_lahir: string | null;
+          custom_kode_pelanggan: string | null;
         }[];
       }>("/api/resource/Customer", {
         params: {
@@ -121,6 +122,7 @@ export async function resolveCurrentUser(sid: string | null): Promise<CurrentUse
             "email_id",
             "loyalty_program",
             "custom_tanggal_lahir",
+            "custom_kode_pelanggan",
           ]),
           filters: jsonFilters([["Portal User", "user", "=", email]]),
           limit_page_length: "1",
@@ -140,6 +142,7 @@ export async function resolveCurrentUser(sid: string | null): Promise<CurrentUse
           email: c.email_id,
           loyaltyProgram: c.loyalty_program,
           birthDate: c.custom_tanggal_lahir,
+          kodePelanggan: c.custom_kode_pelanggan,
         },
       };
   } catch {

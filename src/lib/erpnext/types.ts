@@ -39,6 +39,11 @@ export type Customer = {
   email: string | null;
   loyaltyProgram: string | null;
   birthDate: string | null;
+  // "Kode Pelanggan" — a physical membership card code for in-store
+  // customers (format "XSA#####"), or a separate "XAPP#####" series minted
+  // for accounts created through the app/website (see google-auth.ts).
+  // Used as the member card's scannable/QR-code identifier.
+  kodePelanggan: string | null;
 };
 
 export type CurrentUser = {

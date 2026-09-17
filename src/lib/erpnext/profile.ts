@@ -10,6 +10,28 @@ export type MyAddress = { addressName: string | null; line1: string; city: strin
 
 const COUNTRY = "Indonesia";
 
+// Shared by the web's edit-profile page (cookie session, below) and the
+// mobile app's own routes (bearer sid).
+export async function fetchAddressForCustomer(customerId: string): Promise<MyAddress> {
+  const res = await erpRequest<{
+    data: { name: string; address_line1: string; city: string }[];
+  }>("/api/resource/Address", {
+    params: {
+      fields: jsonFields(["name", "address_line1", "city"]),
+      filters: jsonFilters([
+        ["Dynamic Link", "link_doctype", "=", "Customer"],
+        ["Dynamic Link", "link_name", "=", customerId],
+      ]),
+      limit_page_length: "1",
+    },
+  });
+
+  const a = res.data[0];
+  return a
+    ? { addressName: a.name, line1: a.address_line1, city: a.city }
+    : { addressName: null, line1: "", city: "" };
+}
+
 export const getMyAddress = createServerFn({ method: "GET" }).handler(
   async (): Promise<MyAddress | null> => {
     // Per-customer address — never cache (same fixed no-arg URL every call).
@@ -23,23 +45,7 @@ export const getMyAddress = createServerFn({ method: "GET" }).handler(
     const auth = await getCurrentCustomer();
     if (!auth?.customer) return null;
 
-    const res = await erpRequest<{
-      data: { name: string; address_line1: string; city: string }[];
-    }>("/api/resource/Address", {
-      params: {
-        fields: jsonFields(["name", "address_line1", "city"]),
-        filters: jsonFilters([
-          ["Dynamic Link", "link_doctype", "=", "Customer"],
-          ["Dynamic Link", "link_name", "=", auth.customer.id],
-        ]),
-        limit_page_length: "1",
-      },
-    });
-
-    const a = res.data[0];
-    return a
-      ? { addressName: a.name, line1: a.address_line1, city: a.city }
-      : { addressName: null, line1: "", city: "" };
+    return fetchAddressForCustomer(auth.customer.id);
   },
 );
 
