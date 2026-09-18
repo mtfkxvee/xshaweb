@@ -286,6 +286,27 @@ async function filterInStock<T extends { id: string }>(
   return items.filter((i) => inStock.has(i.id));
 }
 
+// Batch version of checkItemStock, for the mobile app's own cart→checkout
+// flow — checking one Bin query for the whole cart instead of one round
+// trip per line item. Returns which of the given item codes have stock
+// (actual_qty > 0) at that warehouse; anything not in the returned set is
+// out of stock there.
+export async function checkItemsInStock(itemCodes: string[], warehouse: string): Promise<Set<string>> {
+  if (itemCodes.length === 0) return new Set();
+  const res = await erpRequest<{ data: { item_code: string }[] }>("/api/resource/Bin", {
+    params: {
+      fields: jsonFields(["item_code"]),
+      filters: jsonFilters([
+        ["item_code", "in", itemCodes],
+        ["warehouse", "=", warehouse],
+        ["actual_qty", ">", 0],
+      ]),
+      limit_page_length: "0",
+    },
+  });
+  return new Set(res.data.map((r) => r.item_code));
+}
+
 // Used by the cart when adding an item while an outlet is selected, to warn
 // the shopper up front instead of them finding out only after checkout.
 export const checkItemStock = createServerFn({ method: "GET" })
