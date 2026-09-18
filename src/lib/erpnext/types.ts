@@ -5,6 +5,11 @@ export type Product = {
   price: number;
   image: string;
   alt: string;
+  // Present only when an active selling Pricing Rule discounts this item —
+  // lets the catalog/search grid show the same promo pricing as the Promo
+  // tab instead of the undiscounted standard_rate.
+  oldPrice?: number;
+  discountPercent?: number;
 };
 
 // A node in the Item Group tree (ERPNext models Department > Category >

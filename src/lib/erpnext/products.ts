@@ -22,14 +22,17 @@ type ErpItem = {
   description: string | null;
 };
 
-function mapItemToProduct(item: ErpItem, erpBaseUrl: string): Product {
+function mapItemToProduct(item: ErpItem, erpBaseUrl: string, discount?: ErpPricingRule): Product {
+  const oldPrice = item.standard_rate ?? 0;
+  const priceFields = discount ? discountFor(discount, oldPrice) : null;
   return {
     id: item.name,
     name: item.item_name || item.name,
     category: item.item_group,
-    price: item.standard_rate ?? 0,
+    price: priceFields ? priceFields.price : oldPrice,
     image: item.image ? `${erpBaseUrl}${item.image}` : PLACEHOLDER_IMAGE,
     alt: item.item_name || item.name,
+    ...(priceFields ? { oldPrice, discountPercent: priceFields.discountPercent } : {}),
   };
 }
 
@@ -90,6 +93,62 @@ type ErpBinRow = {
 // so those, plus search/sort/pagination, are applied in memory over the
 // warehouse's full stocked-item set — bounded by that warehouse's own stock
 // count (thousands at most), not the whole catalog.
+type ErpPricingRuleItemRow = {
+  item_code: string;
+  parent: string;
+  disable: number;
+  selling: number;
+  valid_from: string;
+  valid_upto: string;
+  rate_or_discount: "Rate" | "Discount Percentage" | "Discount Amount";
+  discount_percentage: number;
+  discount_amount: number;
+};
+
+// Same "active selling Pricing Rule" concept getPromoProducts uses, but
+// resolved for a specific known set of item codes (one page of catalog/
+// search results) instead of scanning rules first — a single joined query
+// against the child table, filtered/validated in memory the same way
+// getProductsInStock joins Bin to Item (Frappe can't filter on dotted
+// fields, only select them).
+async function getActiveDiscounts(itemCodes: string[]): Promise<Map<string, ErpPricingRule>> {
+  if (itemCodes.length === 0) return new Map();
+  const today = erpToday();
+  const res = await erpRequest<{ data: ErpPricingRuleItemRow[] }>("/api/resource/Pricing Rule Item", {
+    params: {
+      fields: jsonFields([
+        "item_code",
+        "parent",
+        "parent.disable as disable",
+        "parent.selling as selling",
+        "parent.valid_from as valid_from",
+        "parent.valid_upto as valid_upto",
+        "parent.rate_or_discount as rate_or_discount",
+        "parent.discount_percentage as discount_percentage",
+        "parent.discount_amount as discount_amount",
+      ]),
+      filters: jsonFilters([["item_code", "in", itemCodes]]),
+      limit_page_length: "0",
+    },
+  });
+
+  const map = new Map<string, ErpPricingRule>();
+  for (const row of res.data) {
+    if (row.disable !== 0 || row.selling !== 1) continue;
+    if (row.valid_from > today || row.valid_upto < today) continue;
+    if (map.has(row.item_code)) continue;
+    map.set(row.item_code, {
+      name: row.parent,
+      title: row.parent,
+      apply_on: "Item Code",
+      rate_or_discount: row.rate_or_discount,
+      discount_percentage: row.discount_percentage,
+      discount_amount: row.discount_amount,
+    });
+  }
+  return map;
+}
+
 async function getProductsInStock(
   data: ProductQuery,
   page: number,
@@ -137,6 +196,7 @@ async function getProductsInStock(
 
   const total = rows.length;
   const pageRows = rows.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+  const discounts = await getActiveDiscounts(pageRows.map((r) => r.item_code));
 
   return {
     products: pageRows.map((r) =>
@@ -150,6 +210,7 @@ async function getProductsInStock(
           description: null,
         },
         erpBaseUrl,
+        discounts.get(r.item_code),
       ),
     ),
     total,
@@ -226,8 +287,10 @@ export const getProducts = createServerFn({ method: "GET" })
       }),
     ]);
 
+    const discounts = await getActiveDiscounts(listRes.data.map((item) => item.name));
+
     return {
-      products: listRes.data.map((item) => mapItemToProduct(item, config.url)),
+      products: listRes.data.map((item) => mapItemToProduct(item, config.url, discounts.get(item.name))),
       total: countRes.message,
     };
   });
@@ -257,7 +320,8 @@ export const getProductById = createServerFn({ method: "GET" })
           },
         },
       );
-      return mapItemToProduct(res.data, config.url);
+      const discounts = await getActiveDiscounts([res.data.name]);
+      return mapItemToProduct(res.data, config.url, discounts.get(res.data.name));
     } catch {
       return null;
     }
