@@ -65,17 +65,29 @@ export type Order = {
   total: number;
 };
 
-// "Pesanan" — a Quotation created by the app's own checkout, distinct from
-// Order/Sales Invoice above ("Riwayat Transaksi", completed in-store/POS
-// sales). Tracks an order through the app's own checkout→payment flow:
-// status "Ordered" means DOKU confirmed payment and it was converted into
-// a Sales Order; anything else is still awaiting payment/action and can be
-// resumed.
-export type QuotationOrder = {
+// "Pesanan" — an order placed via the app's own checkout, tracked through
+// its full lifecycle (unlike Order/Sales Invoice above, which only covers
+// the final, completed state — "Riwayat Transaksi"):
+//
+//   unpaid     Quotation submitted, DOKU hasn't confirmed payment yet
+//   preparing  DOKU confirmed payment, converted to a Sales Order — no
+//              Delivery Request linked to it yet
+//   shipping   A Delivery Request is linked (Quotation.custom_sales_order
+//              -> Delivery Request.custom_sales_order), status not yet
+//              "Terkirim" (Delivered)
+//   completed  That Delivery Request's status is "Terkirim"
+//
+// `status`/`deliveryStatus` carry the raw underlying ERPNext values for
+// display; `stage` is the derived bucket the mobile app groups by.
+export type OrderStage = "unpaid" | "preparing" | "shipping" | "completed";
+
+export type Pesanan = {
   id: string;
   date: string;
   status: string;
   total: number;
+  stage: OrderStage;
+  deliveryStatus: string | null;
 };
 
 export type OrderDetailLine = {

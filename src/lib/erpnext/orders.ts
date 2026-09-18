@@ -5,7 +5,7 @@ import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
 import { createDokuCheckoutSession } from "./doku";
 import { mockOrders } from "./mock-data";
-import type { Customer, Order, OrderDetail, OrderLine, QuotationOrder } from "./types";
+import type { Customer, Order, OrderDetail, OrderLine, OrderStage, Pesanan } from "./types";
 
 const COMPANY = "X-SHA";
 const CURRENCY = "IDR";
@@ -231,18 +231,15 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
   if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
 
   try {
-    const existing = await erpRequest<{ data: { status: string } }>(
+    const existing = await erpRequest<{ data: { status: string; custom_sales_order: string | null } }>(
       `/api/resource/Quotation/${encodeURIComponent(quotationId)}`,
-      { params: { fields: jsonFields(["status"]) } },
+      { params: { fields: jsonFields(["status", "custom_sales_order"]) } },
     );
     // A Quotation ERPNext has already mapped into a Sales Order flips to
     // this status on its own — nothing further to do for a retried
-    // notification. (Not looking up the resulting Sales Order's name here:
-    // Sales Order Item's reverse-reference field isn't reliably reachable
-    // over the REST API with an admin token, and the webhook caller only
-    // needs to know conversion has already happened, not which order.)
+    // notification.
     if (existing.data.status === "Ordered") {
-      return { ok: true, salesOrderId: "" };
+      return { ok: true, salesOrderId: existing.data.custom_sales_order ?? "" };
     }
 
     const company = await erpRequest<{ data: { cost_center: string } }>(
@@ -278,24 +275,38 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       body: { docstatus: 1 },
     });
 
+    // Records the link so resolveMyPesanan (and any retried notification,
+    // via the early-return above) can find this Sales Order directly by
+    // name instead of reverse-searching for it.
+    await erpRequest(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
+      method: "PUT",
+      body: { custom_sales_order: created.data.name },
+    }).catch(() => {});
+
     return { ok: true, salesOrderId: created.data.name };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }
 }
 
-// "Pesanan Saya" (mobile) — the customer's own checkout-created Quotations,
-// so they can see whether an order is still waiting on payment ("Open") or
-// has gone through ("Ordered"), unlike resolveOrders above which only
-// shows completed in-store Sales Invoices.
-export async function resolveMyQuotations(customer: Customer | null): Promise<QuotationOrder[]> {
+// "Pesanan Saya" (mobile) — the customer's own checkout-created orders,
+// tracked through their full lifecycle (unpaid → preparing → shipping →
+// completed — see the Pesanan/OrderStage doc comment in types.ts), unlike
+// resolveOrders above which only shows completed in-store Sales Invoices.
+export async function resolveMyPesanan(customer: Customer | null): Promise<Pesanan[]> {
   if (!isErpnextConfigured() || !customer) return [];
 
   const res = await erpRequest<{
-    data: { name: string; transaction_date: string; status: string; grand_total: number }[];
+    data: {
+      name: string;
+      transaction_date: string;
+      status: string;
+      grand_total: number;
+      custom_sales_order: string | null;
+    }[];
   }>("/api/resource/Quotation", {
     params: {
-      fields: jsonFields(["name", "transaction_date", "status", "grand_total"]),
+      fields: jsonFields(["name", "transaction_date", "status", "grand_total", "custom_sales_order"]),
       filters: jsonFilters([
         ["party_name", "=", customer.id],
         ["docstatus", "=", 1],
@@ -305,12 +316,54 @@ export async function resolveMyQuotations(customer: Customer | null): Promise<Qu
     },
   });
 
-  return res.data.map((q) => ({
-    id: q.name,
-    date: q.transaction_date,
-    status: q.status,
-    total: q.grand_total,
-  }));
+  // Ordered quotations that have a linked Sales Order might also have a
+  // Delivery Request staff created for that order — one batched lookup for
+  // all of them, rather than one request per row.
+  const salesOrderNames = res.data
+    .map((q) => q.custom_sales_order)
+    .filter((so): so is string => !!so);
+
+  const deliveryStatusBySalesOrder = new Map<string, string>();
+  if (salesOrderNames.length > 0) {
+    const drRes = await erpRequest<{
+      data: { custom_sales_order: string; delivery_status: string }[];
+    }>("/api/resource/Delivery Request", {
+      params: {
+        fields: jsonFields(["custom_sales_order", "delivery_status"]),
+        filters: jsonFilters([["custom_sales_order", "in", salesOrderNames]]),
+        order_by: "creation desc",
+        limit_page_length: "0",
+      },
+    });
+    // Most recent Delivery Request per Sales Order wins (a redo/replacement
+    // delivery attempt) — order_by desc + only-set-if-absent achieves that.
+    for (const dr of drRes.data) {
+      if (!deliveryStatusBySalesOrder.has(dr.custom_sales_order)) {
+        deliveryStatusBySalesOrder.set(dr.custom_sales_order, dr.delivery_status);
+      }
+    }
+  }
+
+  return res.data.map((q): Pesanan => {
+    const deliveryStatus = q.custom_sales_order
+      ? (deliveryStatusBySalesOrder.get(q.custom_sales_order) ?? null)
+      : null;
+
+    let stage: OrderStage;
+    if (q.status !== "Ordered") stage = "unpaid";
+    else if (!deliveryStatus) stage = "preparing";
+    else if (deliveryStatus === "Terkirim") stage = "completed";
+    else stage = "shipping";
+
+    return {
+      id: q.name,
+      date: q.transaction_date,
+      status: q.status,
+      total: q.grand_total,
+      stage,
+      deliveryStatus,
+    };
+  });
 }
 
 export type ResumePaymentResult = { ok: true; paymentUrl: string } | { ok: false; message: string };
