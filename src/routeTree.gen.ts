@@ -30,6 +30,7 @@ import { Route as ApiMobileOutletsRouteImport } from './routes/api/mobile/outlet
 import { Route as ApiMobileProductsRouteImport } from './routes/api/mobile/products'
 import { Route as ApiMobilePromoBannersRouteImport } from './routes/api/mobile/promo-banners'
 import { Route as ApiMobilePromoProductsRouteImport } from './routes/api/mobile/promo-products'
+import { Route as ApiPaymentsDokuNotificationRouteImport } from './routes/api/payments/doku-notification'
 import { Route as ApiMobileAuthCompleteProfileRouteImport } from './routes/api/mobile/auth.complete-profile'
 import { Route as ApiMobileAuthLoginRouteImport } from './routes/api/mobile/auth.login'
 import { Route as ApiMobileAuthLogoutRouteImport } from './routes/api/mobile/auth.logout'
@@ -145,6 +146,12 @@ const ApiMobilePromoProductsRoute = ApiMobilePromoProductsRouteImport.update({
   path: '/api/mobile/promo-products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPaymentsDokuNotificationRoute =
+  ApiPaymentsDokuNotificationRouteImport.update({
+    id: '/api/payments/doku-notification',
+    path: '/api/payments/doku-notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiMobileAuthCompleteProfileRoute =
   ApiMobileAuthCompleteProfileRouteImport.update({
     id: '/api/mobile/auth/complete-profile',
@@ -216,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
@@ -248,6 +256,7 @@ export interface FileRoutesByTo {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
@@ -281,6 +290,7 @@ export interface FileRoutesById {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
   '/api/mobile/auth/logout': typeof ApiMobileAuthLogoutRoute
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
@@ -379,6 +391,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
     | '/api/mobile/auth/logout'
@@ -412,6 +425,7 @@ export interface RootRouteChildren {
   ApiMobileProductsRoute: typeof ApiMobileProductsRoute
   ApiMobilePromoBannersRoute: typeof ApiMobilePromoBannersRoute
   ApiMobilePromoProductsRoute: typeof ApiMobilePromoProductsRoute
+  ApiPaymentsDokuNotificationRoute: typeof ApiPaymentsDokuNotificationRoute
   ApiMobileAuthCompleteProfileRoute: typeof ApiMobileAuthCompleteProfileRoute
   ApiMobileAuthLoginRoute: typeof ApiMobileAuthLoginRoute
   ApiMobileAuthLogoutRoute: typeof ApiMobileAuthLogoutRoute
@@ -572,6 +586,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobilePromoProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/payments/doku-notification': {
+      id: '/api/payments/doku-notification'
+      path: '/api/payments/doku-notification'
+      fullPath: '/api/payments/doku-notification'
+      preLoaderRoute: typeof ApiPaymentsDokuNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/auth/complete-profile': {
       id: '/api/mobile/auth/complete-profile'
       path: '/api/mobile/auth/complete-profile'
@@ -660,6 +681,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileProductsRoute: ApiMobileProductsRoute,
   ApiMobilePromoBannersRoute: ApiMobilePromoBannersRoute,
   ApiMobilePromoProductsRoute: ApiMobilePromoProductsRoute,
+  ApiPaymentsDokuNotificationRoute: ApiPaymentsDokuNotificationRoute,
   ApiMobileAuthCompleteProfileRoute: ApiMobileAuthCompleteProfileRoute,
   ApiMobileAuthLoginRoute: ApiMobileAuthLoginRoute,
   ApiMobileAuthLogoutRoute: ApiMobileAuthLogoutRoute,

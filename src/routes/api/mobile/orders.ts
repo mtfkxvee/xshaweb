@@ -16,11 +16,12 @@ export const Route = createFileRoute("/api/mobile/orders")({
         const body = (await request.json().catch(() => null)) as {
           items?: OrderLine[];
           note?: string;
+          returnUrl?: string;
         } | null;
         if (!body?.items?.length) {
           return json({ ok: false, reason: "erpnext_error", message: "Keranjang kosong." }, { status: 400 });
         }
-        const result = await submitOrder(user?.customer ?? null, body.items, body.note);
+        const result = await submitOrder(user?.customer ?? null, body.items, body.note, body.returnUrl);
         return json(result);
       },
     },

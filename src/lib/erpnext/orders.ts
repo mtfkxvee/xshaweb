@@ -3,6 +3,7 @@ import { getCookie, setResponseHeader } from "@tanstack/react-start/server";
 import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
 import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
+import { createDokuCheckoutSession } from "./doku";
 import { mockOrders } from "./mock-data";
 import type { Customer, Order, OrderDetail, OrderLine } from "./types";
 
@@ -11,7 +12,7 @@ const CURRENCY = "IDR";
 const PRICE_LIST = "Standard Selling";
 
 export type CreateOrderResult =
-  | { ok: true; orderId: string }
+  | { ok: true; orderId: string; paymentUrl?: string }
   | {
       ok: false;
       reason: "not_configured" | "not_authenticated" | "erpnext_error";
@@ -20,11 +21,15 @@ export type CreateOrderResult =
 
 // Extracted so the mobile `/api/mobile/orders` route (bearer-token auth) can
 // place an order for an already-resolved customer, without re-deriving it
-// from a cookie.
+// from a cookie. `returnUrl` is only supplied by the mobile app (its own
+// deep-link back into the app, same idea as the Google login flow) — when
+// omitted (the web checkout's own call site), no DOKU session is created
+// and behavior is unchanged from before payments existed.
 export async function submitOrder(
   customer: Customer | null,
   items: OrderLine[],
   note?: string,
+  returnUrl?: string,
 ): Promise<CreateOrderResult> {
   if (!isErpnextConfigured()) return { ok: false, reason: "not_configured" };
   if (!customer) return { ok: false, reason: "not_authenticated" };
@@ -66,7 +71,13 @@ export async function submitOrder(
         quotation_to: "Customer",
         party_name: customer.id,
         transaction_date: today,
-        order_type: "Shopping Cart",
+        // "Shopping Cart" triggers the webshop app's validation that every
+        // line item has a Website Item record — almost nothing in the
+        // catalog does (only 3 of the whole catalog, checked directly
+        // against production), so that order_type made checkout fail to
+        // record in ERPNext for virtually every real order. "Sales" is
+        // ERPNext's own plain default and has no such requirement.
+        order_type: "Sales",
         company: COMPANY,
         currency: CURRENCY,
         conversion_rate: 1,
@@ -78,7 +89,35 @@ export async function submitOrder(
       },
     });
 
-    return { ok: true, orderId: res.data.name };
+    const orderId = res.data.name;
+
+    // Submitting (docstatus 0 -> 1) is required before this Quotation can
+    // later be mapped into a Sales Order once DOKU confirms payment — and
+    // is the normal ERPNext workflow anyway (a draft Quotation is a work-
+    // in-progress record, not something staff should act on). Best-effort:
+    // if this fails, the order still exists as a draft and checkout isn't
+    // blocked by it.
+    await erpRequest(`/api/resource/Quotation/${encodeURIComponent(orderId)}`, {
+      method: "PUT",
+      body: { docstatus: 1 },
+    }).catch(() => {});
+
+    if (returnUrl && customer.email) {
+      const total = items_.reduce((sum, line) => sum + line.rate * line.qty, 0);
+      // Best-effort: a failed/unconfigured DOKU session doesn't fail the
+      // whole checkout — the order is already recorded either way, the app
+      // just falls back to its existing WhatsApp handoff.
+      const payment = await createDokuCheckoutSession({
+        invoiceNumber: orderId,
+        amount: total,
+        customerName: customer.name,
+        customerEmail: customer.email,
+        returnUrl,
+      });
+      if (payment.ok) return { ok: true, orderId, paymentUrl: payment.url };
+    }
+
+    return { ok: true, orderId };
   } catch (error) {
     return {
       ok: false,
@@ -175,6 +214,73 @@ export async function resolveOrderDetail(
     };
   } catch {
     return null;
+  }
+}
+
+export type ConvertResult = { ok: true; salesOrderId: string } | { ok: false; message: string };
+
+// Called by the DOKU notification webhook once a payment is confirmed —
+// converts the (already-submitted) Quotation created at checkout into a
+// submitted Sales Order, so staff see it as a real, paid order instead of
+// a Quotation they'd otherwise have to action manually. Idempotent: a
+// Quotation ERPNext has already converted flips its own status to
+// "Ordered", which we check for up front so a duplicate/retried DOKU
+// notification (their docs mention automatic retries) doesn't error out
+// or create a second Sales Order for the same payment.
+export async function convertQuotationToSalesOrder(quotationId: string): Promise<ConvertResult> {
+  if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
+
+  try {
+    const existing = await erpRequest<{ data: { status: string } }>(
+      `/api/resource/Quotation/${encodeURIComponent(quotationId)}`,
+      { params: { fields: jsonFields(["status"]) } },
+    );
+    // A Quotation ERPNext has already mapped into a Sales Order flips to
+    // this status on its own — nothing further to do for a retried
+    // notification. (Not looking up the resulting Sales Order's name here:
+    // Sales Order Item's reverse-reference field isn't reliably reachable
+    // over the REST API with an admin token, and the webhook caller only
+    // needs to know conversion has already happened, not which order.)
+    if (existing.data.status === "Ordered") {
+      return { ok: true, salesOrderId: "" };
+    }
+
+    const company = await erpRequest<{ data: { cost_center: string } }>(
+      `/api/resource/Company/${encodeURIComponent(COMPANY)}`,
+      { params: { fields: jsonFields(["cost_center"]) } },
+    );
+    const costCenter = company.data.cost_center;
+    const deliveryDate = erpToday();
+
+    const mapped = await erpRequest<{ message: Record<string, unknown> & { items: Record<string, unknown>[] } }>(
+      "/api/method/erpnext.selling.doctype.quotation.quotation.make_sales_order",
+      { params: { source_name: quotationId } },
+    );
+
+    const soDoc = {
+      ...mapped.message,
+      delivery_date: deliveryDate,
+      cost_center: costCenter,
+      items: mapped.message.items.map((item) => ({
+        ...item,
+        delivery_date: deliveryDate,
+        cost_center: costCenter,
+      })),
+    };
+
+    const created = await erpRequest<{ data: { name: string } }>("/api/resource/Sales Order", {
+      method: "POST",
+      body: soDoc,
+    });
+
+    await erpRequest(`/api/resource/Sales Order/${encodeURIComponent(created.data.name)}`, {
+      method: "PUT",
+      body: { docstatus: 1 },
+    });
+
+    return { ok: true, salesOrderId: created.data.name };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }
 }
 

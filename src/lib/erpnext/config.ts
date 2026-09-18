@@ -24,3 +24,13 @@ export function getGoogleOAuthConfig(): GoogleOAuthConfig | null {
   if (!clientId || !clientSecret) return null;
   return { clientId, clientSecret };
 }
+
+export type DokuConfig = { clientId: string; secretKey: string; baseUrl: string };
+
+export function getDokuConfig(): DokuConfig | null {
+  const clientId = process.env.DOKU_CLIENT_ID;
+  const secretKey = process.env.DOKU_SECRET_KEY;
+  const baseUrl = process.env.DOKU_BASE_URL;
+  if (!clientId || !secretKey || !baseUrl) return null;
+  return { clientId, secretKey, baseUrl: baseUrl.replace(/\/$/, "") };
+}
