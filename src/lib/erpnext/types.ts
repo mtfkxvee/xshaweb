@@ -65,6 +65,19 @@ export type Order = {
   total: number;
 };
 
+// "Pesanan" — a Quotation created by the app's own checkout, distinct from
+// Order/Sales Invoice above ("Riwayat Transaksi", completed in-store/POS
+// sales). Tracks an order through the app's own checkout→payment flow:
+// status "Ordered" means DOKU confirmed payment and it was converted into
+// a Sales Order; anything else is still awaiting payment/action and can be
+// resumed.
+export type QuotationOrder = {
+  id: string;
+  date: string;
+  status: string;
+  total: number;
+};
+
 export type OrderDetailLine = {
   itemCode: string;
   itemName: string;

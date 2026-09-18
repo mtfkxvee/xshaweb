@@ -5,7 +5,7 @@ import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
 import { createDokuCheckoutSession } from "./doku";
 import { mockOrders } from "./mock-data";
-import type { Customer, Order, OrderDetail, OrderLine } from "./types";
+import type { Customer, Order, OrderDetail, OrderLine, QuotationOrder } from "./types";
 
 const COMPANY = "X-SHA";
 const CURRENCY = "IDR";
@@ -279,6 +279,79 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
     });
 
     return { ok: true, salesOrderId: created.data.name };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+// "Pesanan Saya" (mobile) — the customer's own checkout-created Quotations,
+// so they can see whether an order is still waiting on payment ("Open") or
+// has gone through ("Ordered"), unlike resolveOrders above which only
+// shows completed in-store Sales Invoices.
+export async function resolveMyQuotations(customer: Customer | null): Promise<QuotationOrder[]> {
+  if (!isErpnextConfigured() || !customer) return [];
+
+  const res = await erpRequest<{
+    data: { name: string; transaction_date: string; status: string; grand_total: number }[];
+  }>("/api/resource/Quotation", {
+    params: {
+      fields: jsonFields(["name", "transaction_date", "status", "grand_total"]),
+      filters: jsonFilters([
+        ["party_name", "=", customer.id],
+        ["docstatus", "=", 1],
+      ]),
+      order_by: "creation desc",
+      limit_page_length: "20",
+    },
+  });
+
+  return res.data.map((q) => ({
+    id: q.name,
+    date: q.transaction_date,
+    status: q.status,
+    total: q.grand_total,
+  }));
+}
+
+export type ResumePaymentResult = { ok: true; paymentUrl: string } | { ok: false; message: string };
+
+// Creates a fresh DOKU Checkout session for an existing Quotation, for
+// "Lanjutkan Pembayaran" on an order the shopper started but never paid
+// for. Re-verifies ownership and current status server-side rather than
+// trusting the app — an already-"Ordered" Quotation has nothing left to
+// pay, and the total is recomputed from the Quotation's own saved items
+// rather than trusted from the client, same reasoning as checkout itself.
+export async function resumeQuotationPayment(
+  customer: Customer | null,
+  quotationId: string,
+  returnUrl: string,
+): Promise<ResumePaymentResult> {
+  if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
+  if (!customer?.email) return { ok: false, message: "Anda belum masuk." };
+
+  try {
+    const res = await erpRequest<{
+      data: { party_name: string; status: string; grand_total: number };
+    }>(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
+      params: { fields: jsonFields(["party_name", "status", "grand_total"]) },
+    });
+
+    if (res.data.party_name !== customer.id) {
+      return { ok: false, message: "Pesanan tidak ditemukan." };
+    }
+    if (res.data.status === "Ordered") {
+      return { ok: false, message: "Pesanan ini sudah dibayar." };
+    }
+
+    const payment = await createDokuCheckoutSession({
+      invoiceNumber: quotationId,
+      amount: res.data.grand_total,
+      customerName: customer.name,
+      customerEmail: customer.email,
+      returnUrl,
+    });
+    if (!payment.ok) return { ok: false, message: payment.message };
+    return { ok: true, paymentUrl: payment.url };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }

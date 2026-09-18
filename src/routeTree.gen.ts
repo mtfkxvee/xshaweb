@@ -30,6 +30,7 @@ import { Route as ApiMobileOutletsRouteImport } from './routes/api/mobile/outlet
 import { Route as ApiMobileProductsRouteImport } from './routes/api/mobile/products'
 import { Route as ApiMobilePromoBannersRouteImport } from './routes/api/mobile/promo-banners'
 import { Route as ApiMobilePromoProductsRouteImport } from './routes/api/mobile/promo-products'
+import { Route as ApiMobileQuotationsRouteImport } from './routes/api/mobile/quotations'
 import { Route as ApiPaymentsDokuNotificationRouteImport } from './routes/api/payments/doku-notification'
 import { Route as ApiMobileAuthCompleteProfileRouteImport } from './routes/api/mobile/auth.complete-profile'
 import { Route as ApiMobileAuthLoginRouteImport } from './routes/api/mobile/auth.login'
@@ -41,6 +42,7 @@ import { Route as ApiMobileProductsCheckStockRouteImport } from './routes/api/mo
 import { Route as ApiMobileAuthGoogleCallbackRouteImport } from './routes/api/mobile/auth.google.callback'
 import { Route as ApiMobileAuthGoogleStartRouteImport } from './routes/api/mobile/auth.google.start'
 import { Route as ApiMobileAuthMeAddressRouteImport } from './routes/api/mobile/auth.me_.address'
+import { Route as ApiMobileQuotationsIdResumePaymentRouteImport } from './routes/api/mobile/quotations_.$id.resume-payment'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -147,6 +149,11 @@ const ApiMobilePromoProductsRoute = ApiMobilePromoProductsRouteImport.update({
   path: '/api/mobile/promo-products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileQuotationsRoute = ApiMobileQuotationsRouteImport.update({
+  id: '/api/mobile/quotations',
+  path: '/api/mobile/quotations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPaymentsDokuNotificationRoute =
   ApiPaymentsDokuNotificationRouteImport.update({
     id: '/api/payments/doku-notification',
@@ -207,6 +214,12 @@ const ApiMobileAuthMeAddressRoute = ApiMobileAuthMeAddressRouteImport.update({
   path: '/api/mobile/auth/me/address',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileQuotationsIdResumePaymentRoute =
+  ApiMobileQuotationsIdResumePaymentRouteImport.update({
+    id: '/api/mobile/quotations_/$id/resume-payment',
+    path: '/api/mobile/quotations/$id/resume-payment',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -230,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -241,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
   '/api/mobile/auth/me/address': typeof ApiMobileAuthMeAddressRoute
+  '/api/mobile/quotations/$id/resume-payment': typeof ApiMobileQuotationsIdResumePaymentRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -264,6 +279,7 @@ export interface FileRoutesByTo {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -275,6 +291,7 @@ export interface FileRoutesByTo {
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
   '/api/mobile/auth/me/address': typeof ApiMobileAuthMeAddressRoute
+  '/api/mobile/quotations/$id/resume-payment': typeof ApiMobileQuotationsIdResumePaymentRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -299,6 +316,7 @@ export interface FileRoutesById {
   '/api/mobile/products': typeof ApiMobileProductsRoute
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
+  '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -310,6 +328,7 @@ export interface FileRoutesById {
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
   '/api/mobile/auth/me_/address': typeof ApiMobileAuthMeAddressRoute
+  '/api/mobile/quotations_/$id/resume-payment': typeof ApiMobileQuotationsIdResumePaymentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -335,6 +354,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/mobile/quotations'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -346,6 +366,7 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
     | '/api/mobile/auth/me/address'
+    | '/api/mobile/quotations/$id/resume-payment'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -369,6 +390,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/mobile/quotations'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -380,6 +402,7 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
     | '/api/mobile/auth/me/address'
+    | '/api/mobile/quotations/$id/resume-payment'
   id:
     | '__root__'
     | '/'
@@ -403,6 +426,7 @@ export interface FileRouteTypes {
     | '/api/mobile/products'
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
+    | '/api/mobile/quotations'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -414,6 +438,7 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
     | '/api/mobile/auth/me_/address'
+    | '/api/mobile/quotations_/$id/resume-payment'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -438,6 +463,7 @@ export interface RootRouteChildren {
   ApiMobileProductsRoute: typeof ApiMobileProductsRoute
   ApiMobilePromoBannersRoute: typeof ApiMobilePromoBannersRoute
   ApiMobilePromoProductsRoute: typeof ApiMobilePromoProductsRoute
+  ApiMobileQuotationsRoute: typeof ApiMobileQuotationsRoute
   ApiPaymentsDokuNotificationRoute: typeof ApiPaymentsDokuNotificationRoute
   ApiMobileAuthCompleteProfileRoute: typeof ApiMobileAuthCompleteProfileRoute
   ApiMobileAuthLoginRoute: typeof ApiMobileAuthLoginRoute
@@ -449,6 +475,7 @@ export interface RootRouteChildren {
   ApiMobileAuthGoogleCallbackRoute: typeof ApiMobileAuthGoogleCallbackRoute
   ApiMobileAuthGoogleStartRoute: typeof ApiMobileAuthGoogleStartRoute
   ApiMobileAuthMeAddressRoute: typeof ApiMobileAuthMeAddressRoute
+  ApiMobileQuotationsIdResumePaymentRoute: typeof ApiMobileQuotationsIdResumePaymentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -600,6 +627,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobilePromoProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/quotations': {
+      id: '/api/mobile/quotations'
+      path: '/api/mobile/quotations'
+      fullPath: '/api/mobile/quotations'
+      preLoaderRoute: typeof ApiMobileQuotationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/payments/doku-notification': {
       id: '/api/payments/doku-notification'
       path: '/api/payments/doku-notification'
@@ -677,6 +711,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileAuthMeAddressRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/quotations_/$id/resume-payment': {
+      id: '/api/mobile/quotations_/$id/resume-payment'
+      path: '/api/mobile/quotations/$id/resume-payment'
+      fullPath: '/api/mobile/quotations/$id/resume-payment'
+      preLoaderRoute: typeof ApiMobileQuotationsIdResumePaymentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -702,6 +743,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileProductsRoute: ApiMobileProductsRoute,
   ApiMobilePromoBannersRoute: ApiMobilePromoBannersRoute,
   ApiMobilePromoProductsRoute: ApiMobilePromoProductsRoute,
+  ApiMobileQuotationsRoute: ApiMobileQuotationsRoute,
   ApiPaymentsDokuNotificationRoute: ApiPaymentsDokuNotificationRoute,
   ApiMobileAuthCompleteProfileRoute: ApiMobileAuthCompleteProfileRoute,
   ApiMobileAuthLoginRoute: ApiMobileAuthLoginRoute,
@@ -713,6 +755,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileAuthGoogleCallbackRoute: ApiMobileAuthGoogleCallbackRoute,
   ApiMobileAuthGoogleStartRoute: ApiMobileAuthGoogleStartRoute,
   ApiMobileAuthMeAddressRoute: ApiMobileAuthMeAddressRoute,
+  ApiMobileQuotationsIdResumePaymentRoute:
+    ApiMobileQuotationsIdResumePaymentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
