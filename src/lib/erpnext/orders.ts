@@ -217,6 +217,50 @@ export async function resolveOrderDetail(
   }
 }
 
+// Same idea as resolveOrderDetail above, for a Quotation instead of a
+// Sales Invoice — backs the item breakdown on Pesanan Saya's Belum
+// Dibayar/Disiapkan/Pengiriman tabs, whose rows are still Quotations
+// under the hood (only "Diterima" mixes in real Sales Invoice rows).
+export async function resolveQuotationDetail(
+  customer: Customer | null,
+  quotationId: string,
+): Promise<OrderDetail | null> {
+  if (!isErpnextConfigured() || !customer) return null;
+
+  try {
+    const res = await erpRequest<{
+      data: {
+        name: string;
+        transaction_date: string;
+        status: string;
+        grand_total: number;
+        party_name: string;
+        items: { item_code: string; item_name: string; qty: number; rate: number; amount: number; uom: string }[];
+      };
+    }>(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`);
+
+    const q = res.data;
+    if (q.party_name !== customer.id) return null;
+
+    return {
+      id: q.name,
+      date: q.transaction_date,
+      status: q.status,
+      total: q.grand_total,
+      items: q.items.map((it) => ({
+        itemCode: it.item_code,
+        itemName: it.item_name,
+        qty: it.qty,
+        rate: it.rate,
+        amount: it.amount,
+        uom: it.uom,
+      })),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type ConvertResult = { ok: true; salesOrderId: string } | { ok: false; message: string };
 
 // Called by the DOKU notification webhook once a payment is confirmed —
