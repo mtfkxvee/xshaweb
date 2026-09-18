@@ -7,6 +7,8 @@ type Body = {
   mobile?: string;
   addressLine1?: string;
   city?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 // Filled in right after a first-time Google sign-up, since the profile
@@ -30,6 +32,8 @@ export const Route = createFileRoute("/api/mobile/auth/complete-profile")({
           mobile: body.mobile,
           addressLine1: body.addressLine1 ?? "",
           city: body.city ?? "",
+          latitude: body.latitude ?? null,
+          longitude: body.longitude ?? null,
         });
         return json(result, { status: result.ok ? 200 : 400 });
       },
