@@ -35,17 +35,25 @@ export async function submitOrder(
     // Item lookups and the Quotation write use the admin API key rather
     // than the customer's own session — a portal customer role typically
     // can't read Item or create Quotation records directly in ERPNext.
+    //
+    // `rate` is re-fetched from the Item itself here rather than trusted
+    // from the client's OrderLine — the app only ever sends `rate` back to
+    // itself as a display convenience, but a modified client (or a direct
+    // API call with a valid bearer token) could otherwise submit an
+    // arbitrary price. `qty` is clamped to a sane positive integer for the
+    // same reason.
     const items_ = await Promise.all(
       items.map(async (line) => {
-        const itemRes = await erpRequest<{ data: { stock_uom: string } }>(
+        const itemRes = await erpRequest<{ data: { stock_uom: string; standard_rate: number } }>(
           `/api/resource/Item/${encodeURIComponent(line.itemCode)}`,
-          { params: { fields: jsonFields(["stock_uom"]) } },
+          { params: { fields: jsonFields(["stock_uom", "standard_rate"]) } },
         );
+        const qty = Math.max(1, Math.floor(Number(line.qty)) || 1);
         return {
           item_code: line.itemCode,
           item_name: line.itemName,
-          qty: line.qty,
-          rate: line.rate,
+          qty,
+          rate: itemRes.data.standard_rate ?? 0,
           uom: itemRes.data.stock_uom,
           conversion_factor: 1,
         };

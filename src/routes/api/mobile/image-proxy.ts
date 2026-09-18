@@ -13,7 +13,12 @@ export const Route = createFileRoute("/api/mobile/image-proxy")({
     handlers: {
       GET: async ({ request }) => {
         const path = new URL(request.url).searchParams.get("path");
-        if (!path || !path.startsWith("/")) {
+        // This proxy exists for exactly one thing: re-fetching a private
+        // file attachment with the admin key so an anonymous client can see
+        // it. It must never forward to an arbitrary ERPNext path — that
+        // would let anyone use the admin API key to read any REST/method
+        // endpoint (Customer, User, anything) through this route.
+        if (!path || !path.startsWith("/private/files/") || path.includes("..")) {
           return new Response("Missing or invalid path", { status: 400 });
         }
 
