@@ -93,9 +93,10 @@ type ErpBinRow = {
 // so those, plus search/sort/pagination, are applied in memory over the
 // warehouse's full stocked-item set — bounded by that warehouse's own stock
 // count (thousands at most), not the whole catalog.
-type ErpPricingRuleItemRow = {
-  item_code: string;
-  parent: string;
+type ErpPricingRuleItemCodeRow = { item_code: string; parent: string };
+
+type ErpPricingRuleRow = {
+  name: string;
   disable: number;
   selling: number;
   valid_from: string;
@@ -107,43 +108,68 @@ type ErpPricingRuleItemRow = {
 
 // Same "active selling Pricing Rule" concept getPromoProducts uses, but
 // resolved for a specific known set of item codes (one page of catalog/
-// search results) instead of scanning rules first — a single joined query
-// against the child table, filtered/validated in memory the same way
-// getProductsInStock joins Bin to Item (Frappe can't filter on dotted
-// fields, only select them).
+// search results) instead of scanning rules first. Two queries rather than
+// one joined query — the child table's own "parent" field carries no Link
+// options metadata (it can point at more than one parent doctype in
+// principle), so Frappe can't resolve a "parent.xxx as xxx" dotted select
+// on it the way it can for a real Link field like Bin's "item_code.xxx".
 async function getActiveDiscounts(itemCodes: string[]): Promise<Map<string, ErpPricingRule>> {
   if (itemCodes.length === 0) return new Map();
+
+  const linkRes = await erpRequest<{ data: ErpPricingRuleItemCodeRow[] }>(
+    "/api/resource/Pricing Rule Item Code",
+    {
+      params: {
+        fields: jsonFields(["item_code", "parent"]),
+        filters: jsonFilters([
+          ["item_code", "in", itemCodes],
+          ["parenttype", "=", "Pricing Rule"],
+        ]),
+        parent: "Pricing Rule",
+        limit_page_length: "0",
+      },
+    },
+  );
+  if (linkRes.data.length === 0) return new Map();
+
   const today = erpToday();
-  const res = await erpRequest<{ data: ErpPricingRuleItemRow[] }>("/api/resource/Pricing Rule Item", {
+  const ruleNames = [...new Set(linkRes.data.map((r) => r.parent))];
+  const rulesRes = await erpRequest<{ data: ErpPricingRuleRow[] }>("/api/resource/Pricing Rule", {
     params: {
       fields: jsonFields([
-        "item_code",
-        "parent",
-        "parent.disable as disable",
-        "parent.selling as selling",
-        "parent.valid_from as valid_from",
-        "parent.valid_upto as valid_upto",
-        "parent.rate_or_discount as rate_or_discount",
-        "parent.discount_percentage as discount_percentage",
-        "parent.discount_amount as discount_amount",
+        "name",
+        "disable",
+        "selling",
+        "valid_from",
+        "valid_upto",
+        "rate_or_discount",
+        "discount_percentage",
+        "discount_amount",
       ]),
-      filters: jsonFilters([["item_code", "in", itemCodes]]),
+      filters: jsonFilters([
+        ["name", "in", ruleNames],
+        ["disable", "=", 0],
+        ["selling", "=", 1],
+        ["valid_from", "<=", today],
+        ["valid_upto", ">=", today],
+      ]),
       limit_page_length: "0",
     },
   });
+  const activeRules = new Map(rulesRes.data.map((r) => [r.name, r]));
 
   const map = new Map<string, ErpPricingRule>();
-  for (const row of res.data) {
-    if (row.disable !== 0 || row.selling !== 1) continue;
-    if (row.valid_from > today || row.valid_upto < today) continue;
+  for (const row of linkRes.data) {
     if (map.has(row.item_code)) continue;
+    const rule = activeRules.get(row.parent);
+    if (!rule) continue;
     map.set(row.item_code, {
-      name: row.parent,
-      title: row.parent,
+      name: rule.name,
+      title: rule.name,
       apply_on: "Item Code",
-      rate_or_discount: row.rate_or_discount,
-      discount_percentage: row.discount_percentage,
-      discount_amount: row.discount_amount,
+      rate_or_discount: rule.rate_or_discount,
+      discount_percentage: rule.discount_percentage,
+      discount_amount: rule.discount_amount,
     });
   }
   return map;
