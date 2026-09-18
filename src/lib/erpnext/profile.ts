@@ -6,7 +6,18 @@ import { isErpnextConfigured } from "./config";
 
 export type UpdateProfileResult = { ok: true } | { ok: false; message: string };
 
-export type MyAddress = { addressName: string | null; line1: string; city: string };
+export type MyAddress = {
+  addressName: string | null;
+  line1: string;
+  city: string;
+  // Pin dropped on the in-app map picker (OpenStreetMap/Leaflet — see
+  // MapPickerScreen on the mobile side), stored on Address as
+  // custom_latitude/custom_longitude. Null until the customer has actually
+  // picked a point, since 0,0 is a real (if useless) coordinate and
+  // shouldn't be confused with "not set".
+  latitude: number | null;
+  longitude: number | null;
+};
 
 const COUNTRY = "Indonesia";
 
@@ -14,10 +25,16 @@ const COUNTRY = "Indonesia";
 // mobile app's own routes (bearer sid).
 export async function fetchAddressForCustomer(customerId: string): Promise<MyAddress> {
   const res = await erpRequest<{
-    data: { name: string; address_line1: string; city: string }[];
+    data: {
+      name: string;
+      address_line1: string;
+      city: string;
+      custom_latitude: number | null;
+      custom_longitude: number | null;
+    }[];
   }>("/api/resource/Address", {
     params: {
-      fields: jsonFields(["name", "address_line1", "city"]),
+      fields: jsonFields(["name", "address_line1", "city", "custom_latitude", "custom_longitude"]),
       filters: jsonFilters([
         ["Dynamic Link", "link_doctype", "=", "Customer"],
         ["Dynamic Link", "link_name", "=", customerId],
@@ -28,8 +45,14 @@ export async function fetchAddressForCustomer(customerId: string): Promise<MyAdd
 
   const a = res.data[0];
   return a
-    ? { addressName: a.name, line1: a.address_line1, city: a.city }
-    : { addressName: null, line1: "", city: "" };
+    ? {
+        addressName: a.name,
+        line1: a.address_line1,
+        city: a.city,
+        latitude: a.custom_latitude || null,
+        longitude: a.custom_longitude || null,
+      }
+    : { addressName: null, line1: "", city: "", latitude: null, longitude: null };
 }
 
 export const getMyAddress = createServerFn({ method: "GET" }).handler(
@@ -55,6 +78,8 @@ export type ProfileUpdateInput = {
   birthDate?: string;
   addressLine1: string;
   city: string;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 // Shared by the web's edit-profile form (cookie session, below) and the
@@ -90,10 +115,15 @@ export async function applyProfileUpdate(
         },
       });
 
+      const geo = {
+        custom_latitude: data.latitude ?? null,
+        custom_longitude: data.longitude ?? null,
+      };
+
       if (existing.data[0]) {
         await erpRequest(`/api/resource/Address/${encodeURIComponent(existing.data[0].name)}`, {
           method: "PUT",
-          body: { address_line1: data.addressLine1, city: data.city },
+          body: { address_line1: data.addressLine1, city: data.city, ...geo },
         });
       } else {
         await erpRequest("/api/resource/Address", {
@@ -106,6 +136,7 @@ export async function applyProfileUpdate(
             country: COUNTRY,
             is_primary_address: 1,
             links: [{ link_doctype: "Customer", link_name: customerId }],
+            ...geo,
           },
         });
       }
