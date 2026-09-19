@@ -47,14 +47,19 @@ export async function createDokuCheckoutSession(opts: {
   const config = getDokuConfig();
   if (!config) return { ok: false, message: "DOKU belum dikonfigurasi." };
 
+  const amount = Math.round(opts.amount);
   const body = {
     order: {
-      amount: Math.round(opts.amount),
+      amount,
       invoice_number: opts.invoiceNumber,
       callback_url: opts.returnUrl,
       callback_url_result: opts.returnUrl,
       auto_redirect: true,
-      line_items: [],
+      // DOKU rejects an order whose line items don't sum to `amount`
+      // ("AMOUNT NOT MATCH") — an empty list counts as summing to 0. One
+      // summary line always matches, whatever tax/discount is baked into
+      // the total.
+      line_items: [{ name: `Pesanan ${opts.invoiceNumber}`, price: amount, quantity: 1 }],
     },
     payment: { payment_due_date: 60 },
     customer: {
