@@ -17,7 +17,11 @@ export const Route = createFileRoute("/api/mobile/quotations_/$id/resume-payment
           return json({ ok: false, message: "returnUrl wajib diisi." }, { status: 400 });
         }
 
-        const result = await resumeQuotationPayment(user.customer, params.id, body.returnUrl);
+        const result = await resumeQuotationPayment(
+          { ...user.customer, email: user.customer.email ?? user.email },
+          params.id,
+          body.returnUrl,
+        );
         return json(result, { status: result.ok ? 200 : 400 });
       },
     },

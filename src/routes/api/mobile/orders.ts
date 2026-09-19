@@ -21,7 +21,14 @@ export const Route = createFileRoute("/api/mobile/orders")({
         if (!body?.items?.length) {
           return json({ ok: false, reason: "erpnext_error", message: "Keranjang kosong." }, { status: 400 });
         }
-        const result = await submitOrder(user?.customer ?? null, body.items, body.note, body.returnUrl);
+        const result = await submitOrder(
+          // The Customer record can lack an email (in-store sign-ups) — fall back to
+          // the login email so DOKU, which requires one, still gets a session.
+          user?.customer ? { ...user.customer, email: user.customer.email ?? user.email } : null,
+          body.items,
+          body.note,
+          body.returnUrl,
+        );
         return json(result);
       },
     },
