@@ -12,7 +12,7 @@ const CURRENCY = "IDR";
 const PRICE_LIST = "Standard Selling";
 
 export type CreateOrderResult =
-  | { ok: true; orderId: string; paymentUrl?: string }
+  | { ok: true; orderId: string; paymentUrl?: string; paymentError?: string }
   | {
       ok: false;
       reason: "not_configured" | "not_authenticated" | "erpnext_error";
@@ -115,6 +115,12 @@ export async function submitOrder(
         returnUrl,
       });
       if (payment.ok) return { ok: true, orderId, paymentUrl: payment.url };
+      console.error(`DOKU session failed for ${orderId}: ${payment.message}`);
+      return { ok: true, orderId, paymentError: payment.message };
+    }
+    if (returnUrl) {
+      console.error(`DOKU session skipped for ${orderId}: no returnUrl/email (email=${Boolean(customer.email)})`);
+      return { ok: true, orderId, paymentError: "Email akun tidak tersedia untuk pembayaran online." };
     }
 
     return { ok: true, orderId };
