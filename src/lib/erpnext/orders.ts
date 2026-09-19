@@ -102,7 +102,7 @@ export async function submitOrder(
       body: { docstatus: 1 },
     }).catch(() => {});
 
-    if (returnUrl && customer.email) {
+    if (returnUrl) {
       const total = items_.reduce((sum, line) => sum + line.rate * line.qty, 0);
       // Best-effort: a failed/unconfigured DOKU session doesn't fail the
       // whole checkout — the order is already recorded either way, the app
@@ -111,16 +111,12 @@ export async function submitOrder(
         invoiceNumber: orderId,
         amount: total,
         customerName: customer.name,
-        customerEmail: customer.email,
+        customerEmail: customer.email ?? "",
         returnUrl,
       });
       if (payment.ok) return { ok: true, orderId, paymentUrl: payment.url };
       console.error(`DOKU session failed for ${orderId}: ${payment.message}`);
       return { ok: true, orderId, paymentError: payment.message };
-    }
-    if (returnUrl) {
-      console.error(`DOKU session skipped for ${orderId}: no returnUrl/email (email=${Boolean(customer.email)})`);
-      return { ok: true, orderId, paymentError: "Email akun tidak tersedia untuk pembayaran online." };
     }
 
     return { ok: true, orderId };
@@ -430,7 +426,7 @@ export async function resumeQuotationPayment(
   returnUrl: string,
 ): Promise<ResumePaymentResult> {
   if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
-  if (!customer?.email) return { ok: false, message: "Anda belum masuk." };
+  if (!customer) return { ok: false, message: "Anda belum masuk." };
 
   try {
     const res = await erpRequest<{
@@ -450,10 +446,13 @@ export async function resumeQuotationPayment(
       invoiceNumber: quotationId,
       amount: res.data.grand_total,
       customerName: customer.name,
-      customerEmail: customer.email,
+      customerEmail: customer.email ?? "",
       returnUrl,
     });
-    if (!payment.ok) return { ok: false, message: payment.message };
+    if (!payment.ok) {
+      console.error(`DOKU resume failed for ${quotationId}: ${payment.message}`);
+      return { ok: false, message: payment.message };
+    }
     return { ok: true, paymentUrl: payment.url };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
