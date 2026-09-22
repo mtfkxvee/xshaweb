@@ -69,13 +69,16 @@ export function TopNav() {
           scrolled ? "h-14 md:h-16" : "h-16 md:h-20"
         }`}
       >
-        <Link to="/" className="shrink-0">
-          <img
-            src="/xsha-logo.png"
-            alt="X-SHA"
-            className={`w-auto transition-all duration-300 ${scrolled ? "h-7 md:h-9" : "h-8 md:h-11"}`}
-          />
-        </Link>
+        <div className="flex shrink-0 items-center gap-1">
+          <MobileNavDrawer />
+          <Link to="/">
+            <img
+              src="/xsha-logo.png"
+              alt="X-SHA"
+              className={`w-auto transition-all duration-300 ${scrolled ? "h-7 md:h-9" : "h-8 md:h-11"}`}
+            />
+          </Link>
+        </div>
 
         <nav className="hidden items-center gap-8 lg:flex">
           {links.map((l) => (
@@ -115,7 +118,6 @@ export function TopNav() {
         </form>
 
         <div className="flex items-center gap-1">
-          <MobileNavDrawer />
           <button
             type="button"
             onClick={() => setMobileSearchOpen((v) => !v)}
