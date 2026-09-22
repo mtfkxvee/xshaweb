@@ -18,7 +18,7 @@ export const Route = createFileRoute("/karir")({
       {
         name: "description",
         content:
-          "Lowongan kerja terbuka di X-SHA — bergabung dengan tim ritel heritage Tasikmalaya.",
+          "Lowongan kerja terbuka di X-SHA, bergabung dengan tim ritel heritage Tasikmalaya.",
       },
     ],
   }),
@@ -37,7 +37,7 @@ function Karir() {
         <header className="mb-stack-lg">
           <h1 className="font-display text-headline-lg-mobile md:text-display-lg">Karir</h1>
           <p className="mt-2 max-w-2xl text-body-lg text-on-surface-variant">
-            Bergabung dengan tim X-SHA — cek kesempatan berkarir di seluruh outlet dan kantor
+            Bergabung dengan tim X-SHA, cek kesempatan berkarir di seluruh outlet dan kantor
             kami.
           </p>
         </header>
@@ -92,7 +92,7 @@ function Karir() {
                       {job.salaryRange && (
                         <span className="flex items-center gap-1 font-semibold text-primary">
                           <Icon name="payments" className="text-[16px]" />
-                          {formatIDR(job.salaryRange.lower)} – {formatIDR(job.salaryRange.upper)} /{" "}
+                          {formatIDR(job.salaryRange.lower)} - {formatIDR(job.salaryRange.upper)} /{" "}
                           {job.salaryRange.per === "Month" ? "bulan" : "tahun"}
                         </span>
                       )}

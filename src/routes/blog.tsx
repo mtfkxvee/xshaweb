@@ -23,7 +23,7 @@ export const Route = createFileRoute("/blog")({
       {
         title:
           loaderData && loaderData.page > 1
-            ? `Blog | X-SHA — Halaman ${loaderData.page}`
+            ? `Blog | X-SHA - Halaman ${loaderData.page}`
             : "Blog | X-SHA",
       },
       { name: "description", content: "Tips, inspirasi, dan cerita seputar produk X-SHA." },

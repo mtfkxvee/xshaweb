@@ -269,7 +269,7 @@ export function CartDrawer() {
             </span>
           </div>
           <p className="px-4 text-center text-[12px] italic leading-relaxed text-on-surface-variant">
-            Harga estimasi — total final akan dikonfirmasi admin saat pesanan diproses.
+            Harga estimasi. Total final akan dikonfirmasi admin saat pesanan diproses.
             {isLoggedIn ? " Pesanan otomatis tercatat di akun member Anda." : ""}
           </p>
           <div className="flex flex-col gap-3">

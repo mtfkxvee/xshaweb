@@ -85,7 +85,7 @@ function JobDetail() {
           {job.salaryRange && (
             <span className="flex items-center gap-1.5 font-semibold text-primary">
               <Icon name="payments" className="text-[18px]" />
-              {formatIDR(job.salaryRange.lower)} – {formatIDR(job.salaryRange.upper)} /{" "}
+              {formatIDR(job.salaryRange.lower)} - {formatIDR(job.salaryRange.upper)} /{" "}
               {job.salaryRange.per === "Month" ? "bulan" : "tahun"}
             </span>
           )}

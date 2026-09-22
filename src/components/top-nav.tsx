@@ -39,11 +39,15 @@ export function TopNav() {
     el.classList.add("animate-cart-bounce");
   }, [pulseKey]);
 
+  // Watches the sentinel in SiteLayout instead of a window scroll listener —
+  // toggles state only when the 8px threshold is actually crossed, rather
+  // than on every scroll frame.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const sentinel = document.getElementById("scroll-sentinel");
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting));
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, []);
 
   const submitSearch = (e: React.FormEvent) => {

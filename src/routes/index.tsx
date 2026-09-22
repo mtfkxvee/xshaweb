@@ -60,6 +60,9 @@ function Beranda() {
 
   useEffect(() => {
     if (!api) return;
+    // Respect prefers-reduced-motion: an infinitely-autoplaying carousel is
+    // exactly the kind of continuous motion that preference asks us to stop.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = setInterval(() => {
       api.scrollNext();
     }, 5000);

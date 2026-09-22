@@ -3,6 +3,30 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+/* Self-hosted fonts (no fonts.googleapis.com round trip). Weights match
+   what the design tokens below actually use. */
+@import "@fontsource/bricolage-grotesque/latin-400.css";
+@import "@fontsource/bricolage-grotesque/latin-600.css";
+@import "@fontsource/bricolage-grotesque/latin-700.css";
+@import "@fontsource/bricolage-grotesque/latin-800.css";
+@import "@fontsource/plus-jakarta-sans/latin-400.css";
+@import "@fontsource/plus-jakarta-sans/latin-500.css";
+@import "@fontsource/plus-jakarta-sans/latin-600.css";
+@import "@fontsource/plus-jakarta-sans/latin-700.css";
+
+/* Material Symbols: NOT the `material-symbols` npm package below — that
+   ships the full unsubsetted variable font at ~4MB. This is the same
+   ~450KB file Google's own CSS2 endpoint serves real browsers for this
+   exact axis spec (opsz,wght,FILL,GRAD@24,400,0..1,0), just self-hosted
+   instead of fetched from fonts.gstatic.com. */
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url("/fonts/material-symbols-outlined.woff2") format("woff2");
+}
+
 /*
  * X-SHA design system — Heritage of Tasikmalaya
  * Material-3 inspired violet palette + glassmorphism.
@@ -108,6 +132,93 @@
   --animate-rise: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-pop: pop 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-cart-bounce: cart-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+:root {
+  color-scheme: light;
+}
+
+/* Dark mode: every --color-* token gets a dark equivalent, same hue,
+   inverted lightness. Utilities (bg-primary, text-on-surface, etc.) all
+   resolve var(--color-*) at use time, so overriding the custom properties
+   here is enough — no component needs a dark: variant. Auto-switches with
+   the OS (Section 8.C of the taste skill: respect prefers-color-scheme,
+   no manual toggle unless the brand needs one). "Fixed" roles (M3 fixed /
+   fixed-dim tokens) intentionally stay constant across modes. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --color-background: oklch(0.17 0.008 247.9);
+    --color-foreground: oklch(0.94 0.006 228.5);
+    --color-surface: oklch(0.17 0.008 247.9);
+    --color-on-surface: oklch(0.94 0.006 228.5);
+    --color-on-surface-variant: oklch(0.74 0.03 309);
+    --color-surface-container-lowest: oklch(0.12 0.008 247.9);
+    --color-surface-container-low: oklch(0.2 0.008 247.9);
+    --color-surface-container: oklch(0.23 0.01 247.9);
+    --color-surface-container-high: oklch(0.27 0.012 247.9);
+    --color-surface-container-highest: oklch(0.31 0.014 247.9);
+    --color-surface-variant: oklch(0.31 0.014 247.9);
+
+    --color-primary: oklch(0.75 0.15 305.1);
+    --color-on-primary: oklch(0.2 0.05 305.1);
+    --color-primary-container: oklch(0.32 0.13 303.2);
+    --color-on-primary-container: oklch(0.86 0.1 305.4);
+
+    --color-secondary: oklch(0.78 0.2 322.2);
+    --color-on-secondary: oklch(0.18 0.06 322.2);
+    --color-secondary-container: oklch(0.37 0.16 325.4);
+    --color-on-secondary-container: oklch(0.88 0.1 322.4);
+
+    --color-tertiary: oklch(0.8 0.12 92.3);
+    --color-tertiary-container: oklch(0.34 0.08 92.4);
+    --color-on-tertiary-container: oklch(0.9 0.09 92.3);
+
+    --color-error: oklch(0.75 0.17 27.3);
+    --color-error-container: oklch(0.32 0.09 24.4);
+    --color-on-error: oklch(0.16 0.03 27.3);
+    --color-success: oklch(0.78 0.14 155);
+    --color-success-container: oklch(0.28 0.07 155);
+
+    --color-outline: oklch(0.62 0.02 313.3);
+    --color-outline-variant: oklch(0.4 0.02 313.3);
+    --color-border: oklch(0.3 0.012 247.9);
+    --color-input: oklch(0.3 0.012 247.9);
+    --color-ring: oklch(0.75 0.15 305.1);
+    --color-card: oklch(0.2 0.008 247.9);
+    --color-card-foreground: oklch(0.94 0.006 228.5);
+    --color-popover: oklch(0.2 0.008 247.9);
+    --color-popover-foreground: oklch(0.94 0.006 228.5);
+    --color-muted: oklch(0.23 0.01 247.9);
+    --color-muted-foreground: oklch(0.74 0.03 309);
+    --color-accent: oklch(0.23 0.01 247.9);
+    --color-accent-foreground: oklch(0.75 0.15 305.1);
+    --color-destructive: oklch(0.75 0.17 27.3);
+    --color-destructive-foreground: oklch(0.16 0.03 27.3);
+  }
+
+  body {
+    background-image:
+      radial-gradient(at 0% 0%, rgba(190, 130, 255, 0.09) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(255, 120, 235, 0.07) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(190, 130, 255, 0.06) 0px, transparent 50%);
+  }
+
+  .glass-panel {
+    background: rgba(30, 24, 42, 0.55);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-bar {
+    background: rgba(24, 18, 34, 0.6);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .product-card-image {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
 }
 
 @keyframes drawer-in {
