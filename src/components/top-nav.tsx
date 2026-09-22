@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icon";
+import { ThemeToggle } from "./theme-toggle";
 import { useCart } from "./cart-context";
 import { useOutlet } from "./outlet-context";
 import { useAuth } from "@/hooks/use-auth";
@@ -150,6 +151,7 @@ export function TopNav() {
               <Icon name="person" filled={isLoggedIn} />
             )}
           </Link>
+          <ThemeToggle />
         </div>
       </div>
 

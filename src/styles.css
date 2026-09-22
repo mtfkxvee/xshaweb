@@ -3,6 +3,12 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+/* Tailwind's `dark:` variant defaults to prefers-color-scheme — redirect it
+   to the same manual data-theme attribute ThemeToggle sets, so any stray
+   `dark:` utility (shadcn primitives, etc.) follows the toggle too, instead
+   of silently still tracking OS preference. */
+@custom-variant dark (&:is([data-theme="dark"], [data-theme="dark"] *));
+
 /* Self-hosted fonts (no fonts.googleapis.com round trip). Weights match
    what the design tokens below actually use. */
 @import "@fontsource/bricolage-grotesque/latin-400.css";
@@ -141,13 +147,13 @@
 /* Dark mode: every --color-* token gets a dark equivalent, same hue,
    inverted lightness. Utilities (bg-primary, text-on-surface, etc.) all
    resolve var(--color-*) at use time, so overriding the custom properties
-   here is enough — no component needs a dark: variant. Auto-switches with
-   the OS (Section 8.C of the taste skill: respect prefers-color-scheme,
-   no manual toggle unless the brand needs one). "Fixed" roles (M3 fixed /
-   fixed-dim tokens) intentionally stay constant across modes. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+   here is enough — no component needs a dark: variant. Manual toggle only
+   (ThemeToggle sets data-theme="dark" on <html> and persists it to
+   localStorage) — light is always the default regardless of OS preference.
+   "Fixed" roles (M3 fixed / fixed-dim tokens) intentionally stay constant
+   across modes. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
 
     --color-background: oklch(0.17 0.008 247.9);
     --color-foreground: oklch(0.94 0.006 228.5);
@@ -196,29 +202,28 @@
     --color-accent-foreground: oklch(0.75 0.15 305.1);
     --color-destructive: oklch(0.75 0.17 27.3);
     --color-destructive-foreground: oklch(0.16 0.03 27.3);
-  }
+}
 
-  body {
-    background-image:
-      radial-gradient(at 0% 0%, rgba(190, 130, 255, 0.09) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(255, 120, 235, 0.07) 0px, transparent 50%),
-      radial-gradient(at 50% 100%, rgba(190, 130, 255, 0.06) 0px, transparent 50%);
-  }
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(at 0% 0%, rgba(190, 130, 255, 0.09) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(255, 120, 235, 0.07) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(190, 130, 255, 0.06) 0px, transparent 50%);
+}
 
-  .glass-panel {
-    background: rgba(30, 24, 42, 0.55);
-    border-color: rgba(255, 255, 255, 0.08);
-  }
+[data-theme="dark"] .glass-panel {
+  background: rgba(30, 24, 42, 0.55);
+  border-color: rgba(255, 255, 255, 0.08);
+}
 
-  .glass-bar {
-    background: rgba(24, 18, 34, 0.6);
-    border-color: rgba(255, 255, 255, 0.08);
-  }
+[data-theme="dark"] .glass-bar {
+  background: rgba(24, 18, 34, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+}
 
-  .product-card-image {
-    background-color: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.08);
-  }
+[data-theme="dark"] .product-card-image {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 @keyframes drawer-in {

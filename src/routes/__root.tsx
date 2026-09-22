@@ -106,10 +106,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+// Applies a previously-chosen dark theme before first paint, so a returning
+// visitor who picked dark doesn't see a light-mode flash. Runs synchronously
+// as the first thing in <head>, before the stylesheet even resolves. Default
+// (nothing stored, or storage unavailable) is light — this script only ever
+// adds the dark attribute, never removes it, so it can't override that.
+const THEME_INIT_SCRIPT = `
+(function () {
+  try {
+    if (localStorage.getItem('xsha-theme') === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  } catch (e) {}
+})();
+`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="id">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
