@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icon";
+import { MobileNavDrawer } from "./mobile-nav-drawer";
 import { ThemeToggle } from "./theme-toggle";
 import { useCart } from "./cart-context";
 import { useOutlet } from "./outlet-context";
@@ -114,6 +115,7 @@ export function TopNav() {
         </form>
 
         <div className="flex items-center gap-1">
+          <MobileNavDrawer />
           <button
             type="button"
             onClick={() => setMobileSearchOpen((v) => !v)}
