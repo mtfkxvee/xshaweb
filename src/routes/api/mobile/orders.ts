@@ -17,6 +17,9 @@ export const Route = createFileRoute("/api/mobile/orders")({
           items?: OrderLine[];
           note?: string;
           returnUrl?: string;
+          outletCode?: string;
+          latitude?: number;
+          longitude?: number;
         } | null;
         if (!body?.items?.length) {
           return json({ ok: false, reason: "erpnext_error", message: "Keranjang kosong." }, { status: 400 });
@@ -28,6 +31,10 @@ export const Route = createFileRoute("/api/mobile/orders")({
           body.items,
           body.note,
           body.returnUrl,
+          body.outletCode,
+          body.latitude != null && body.longitude != null
+            ? { latitude: body.latitude, longitude: body.longitude }
+            : undefined,
         );
         return json(result);
       },

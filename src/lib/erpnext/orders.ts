@@ -25,11 +25,22 @@ export type CreateOrderResult =
 // deep-link back into the app, same idea as the Google login flow) — when
 // omitted (the web checkout's own call site), no DOKU session is created
 // and behavior is unchanged from before payments existed.
+// GeoJSON shape Frappe's Geolocation field expects — matches how
+// Outlet.lokasi is stored (see outlets.ts's parseLokasi).
+function toGeoJsonPoint(lat: number, lng: number): string {
+  return JSON.stringify({
+    type: "FeatureCollection",
+    features: [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [lng, lat] } }],
+  });
+}
+
 export async function submitOrder(
   customer: Customer | null,
   items: OrderLine[],
   note?: string,
   returnUrl?: string,
+  outletCode?: string,
+  deliveryCoords?: { latitude: number; longitude: number },
 ): Promise<CreateOrderResult> {
   if (!isErpnextConfigured()) return { ok: false, reason: "not_configured" };
   if (!customer) return { ok: false, reason: "not_authenticated" };
@@ -86,6 +97,14 @@ export async function submitOrder(
         plc_conversion_rate: 1,
         items: items_,
         ...(note ? { other_charges_calculation: note } : {}),
+        ...(outletCode ? { custom_outlet: outletCode } : {}),
+        ...(deliveryCoords
+          ? {
+              custom_latitude: deliveryCoords.latitude,
+              custom_longitude: deliveryCoords.longitude,
+              delivery_point: toGeoJsonPoint(deliveryCoords.latitude, deliveryCoords.longitude),
+            }
+          : {}),
       },
     });
 
@@ -277,10 +296,27 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
   if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
 
   try {
-    const existing = await erpRequest<{ data: { status: string; custom_sales_order: string | null } }>(
-      `/api/resource/Quotation/${encodeURIComponent(quotationId)}`,
-      { params: { fields: jsonFields(["status", "custom_sales_order"]) } },
-    );
+    const existing = await erpRequest<{
+      data: {
+        status: string;
+        custom_sales_order: string | null;
+        custom_outlet: string | null;
+        custom_latitude: number | null;
+        custom_longitude: number | null;
+        delivery_point: string | null;
+      };
+    }>(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
+      params: {
+        fields: jsonFields([
+          "status",
+          "custom_sales_order",
+          "custom_outlet",
+          "custom_latitude",
+          "custom_longitude",
+          "delivery_point",
+        ]),
+      },
+    });
     // A Quotation ERPNext has already mapped into a Sales Order flips to
     // this status on its own — nothing further to do for a retried
     // notification.
@@ -288,11 +324,24 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       return { ok: true, salesOrderId: existing.data.custom_sales_order ?? "" };
     }
 
-    const company = await erpRequest<{ data: { cost_center: string } }>(
-      `/api/resource/Company/${encodeURIComponent(COMPANY)}`,
-      { params: { fields: jsonFields(["cost_center"]) } },
-    );
-    const costCenter = company.data.cost_center;
+    // The cost center belongs to whichever outlet the customer checked out
+    // against — falls back to the company's own default only for the rare
+    // Quotation with no outlet on it (e.g. one created before this field
+    // existed).
+    let costCenter: string;
+    if (existing.data.custom_outlet) {
+      const outlet = await erpRequest<{ data: { cost_center: string } }>(
+        `/api/resource/Outlet/${encodeURIComponent(existing.data.custom_outlet)}`,
+        { params: { fields: jsonFields(["cost_center"]) } },
+      );
+      costCenter = outlet.data.cost_center;
+    } else {
+      const company = await erpRequest<{ data: { cost_center: string } }>(
+        `/api/resource/Company/${encodeURIComponent(COMPANY)}`,
+        { params: { fields: jsonFields(["cost_center"]) } },
+      );
+      costCenter = company.data.cost_center;
+    }
     const deliveryDate = erpToday();
 
     const mapped = await erpRequest<{ message: Record<string, unknown> & { items: Record<string, unknown>[] } }>(
@@ -304,6 +353,12 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       ...mapped.message,
       delivery_date: deliveryDate,
       cost_center: costCenter,
+      // The mapper doesn't necessarily carry these custom fields over on
+      // its own, so they're copied explicitly from the source Quotation.
+      custom_outlet: existing.data.custom_outlet,
+      custom_latitude: existing.data.custom_latitude,
+      custom_longitude: existing.data.custom_longitude,
+      delivery_point: existing.data.delivery_point,
       items: mapped.message.items.map((item) => ({
         ...item,
         delivery_date: deliveryDate,
