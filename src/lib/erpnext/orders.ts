@@ -304,6 +304,7 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
         custom_latitude: number | null;
         custom_longitude: number | null;
         delivery_point: string | null;
+        grand_total: number;
       };
     }>(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
       params: {
@@ -314,6 +315,7 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
           "custom_latitude",
           "custom_longitude",
           "delivery_point",
+          "grand_total",
         ]),
       },
     });
@@ -359,6 +361,10 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       custom_latitude: existing.data.custom_latitude,
       custom_longitude: existing.data.custom_longitude,
       delivery_point: existing.data.delivery_point,
+      // The amount DOKU actually confirmed as paid — the Quotation's own
+      // grand_total, since that's exactly what was sent to DOKU as the
+      // session amount when checkout created it.
+      custom_payment_amount: existing.data.grand_total,
       items: mapped.message.items.map((item) => ({
         ...item,
         delivery_date: deliveryDate,
