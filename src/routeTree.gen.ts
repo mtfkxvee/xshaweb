@@ -32,6 +32,7 @@ import { Route as ApiMobilePromoBannersRouteImport } from './routes/api/mobile/p
 import { Route as ApiMobilePromoProductsRouteImport } from './routes/api/mobile/promo-products'
 import { Route as ApiMobilePromoRuleProductsRouteImport } from './routes/api/mobile/promo-rule-products'
 import { Route as ApiMobileQuotationsRouteImport } from './routes/api/mobile/quotations'
+import { Route as ApiMobileRouteDistanceRouteImport } from './routes/api/mobile/route-distance'
 import { Route as ApiPaymentsDokuNotificationRouteImport } from './routes/api/payments/doku-notification'
 import { Route as ApiMobileAuthCompleteProfileRouteImport } from './routes/api/mobile/auth.complete-profile'
 import { Route as ApiMobileAuthLoginRouteImport } from './routes/api/mobile/auth.login'
@@ -162,6 +163,11 @@ const ApiMobileQuotationsRoute = ApiMobileQuotationsRouteImport.update({
   path: '/api/mobile/quotations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileRouteDistanceRoute = ApiMobileRouteDistanceRouteImport.update({
+  id: '/api/mobile/route-distance',
+  path: '/api/mobile/route-distance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPaymentsDokuNotificationRoute =
   ApiPaymentsDokuNotificationRouteImport.update({
     id: '/api/payments/doku-notification',
@@ -258,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
   '/api/mobile/promo-rule-products': typeof ApiMobilePromoRuleProductsRoute
   '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
+  '/api/mobile/route-distance': typeof ApiMobileRouteDistanceRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -296,6 +303,7 @@ export interface FileRoutesByTo {
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
   '/api/mobile/promo-rule-products': typeof ApiMobilePromoRuleProductsRoute
   '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
+  '/api/mobile/route-distance': typeof ApiMobileRouteDistanceRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -335,6 +343,7 @@ export interface FileRoutesById {
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
   '/api/mobile/promo-rule-products': typeof ApiMobilePromoRuleProductsRoute
   '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
+  '/api/mobile/route-distance': typeof ApiMobileRouteDistanceRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/api/mobile/promo-products'
     | '/api/mobile/promo-rule-products'
     | '/api/mobile/quotations'
+    | '/api/mobile/route-distance'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -413,6 +423,7 @@ export interface FileRouteTypes {
     | '/api/mobile/promo-products'
     | '/api/mobile/promo-rule-products'
     | '/api/mobile/quotations'
+    | '/api/mobile/route-distance'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -451,6 +462,7 @@ export interface FileRouteTypes {
     | '/api/mobile/promo-products'
     | '/api/mobile/promo-rule-products'
     | '/api/mobile/quotations'
+    | '/api/mobile/route-distance'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -490,6 +502,7 @@ export interface RootRouteChildren {
   ApiMobilePromoProductsRoute: typeof ApiMobilePromoProductsRoute
   ApiMobilePromoRuleProductsRoute: typeof ApiMobilePromoRuleProductsRoute
   ApiMobileQuotationsRoute: typeof ApiMobileQuotationsRoute
+  ApiMobileRouteDistanceRoute: typeof ApiMobileRouteDistanceRoute
   ApiPaymentsDokuNotificationRoute: typeof ApiPaymentsDokuNotificationRoute
   ApiMobileAuthCompleteProfileRoute: typeof ApiMobileAuthCompleteProfileRoute
   ApiMobileAuthLoginRoute: typeof ApiMobileAuthLoginRoute
@@ -667,6 +680,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileQuotationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/route-distance': {
+      id: '/api/mobile/route-distance'
+      path: '/api/mobile/route-distance'
+      fullPath: '/api/mobile/route-distance'
+      preLoaderRoute: typeof ApiMobileRouteDistanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/payments/doku-notification': {
       id: '/api/payments/doku-notification'
       path: '/api/payments/doku-notification'
@@ -799,6 +819,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobilePromoProductsRoute: ApiMobilePromoProductsRoute,
   ApiMobilePromoRuleProductsRoute: ApiMobilePromoRuleProductsRoute,
   ApiMobileQuotationsRoute: ApiMobileQuotationsRoute,
+  ApiMobileRouteDistanceRoute: ApiMobileRouteDistanceRoute,
   ApiPaymentsDokuNotificationRoute: ApiPaymentsDokuNotificationRoute,
   ApiMobileAuthCompleteProfileRoute: ApiMobileAuthCompleteProfileRoute,
   ApiMobileAuthLoginRoute: ApiMobileAuthLoginRoute,
