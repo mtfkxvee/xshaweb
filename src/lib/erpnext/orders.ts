@@ -10,6 +10,10 @@ import type { Customer, Order, OrderDetail, OrderLine, OrderStage, Pesanan } fro
 const COMPANY = "X-SHA";
 const CURRENCY = "IDR";
 const PRICE_LIST = "Standard Selling";
+// All DOKU checkout payments (VA, e-wallet, QRIS, etc.) are recorded under
+// this one Mode of Payment on the resulting Sales Order — regardless of
+// which specific channel the customer actually paid through.
+const DOKU_PAYMENT_METHOD = "QRIS ONLINE";
 
 export type CreateOrderResult =
   | { ok: true; orderId: string; paymentUrl?: string; paymentError?: string }
@@ -365,6 +369,7 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       // grand_total, since that's exactly what was sent to DOKU as the
       // session amount when checkout created it.
       custom_payment_amount: existing.data.grand_total,
+      custom_payment_method: DOKU_PAYMENT_METHOD,
       items: mapped.message.items.map((item) => ({
         ...item,
         delivery_date: deliveryDate,
