@@ -29,6 +29,12 @@ export type Outlet = {
   city: string | null;
   territory: string | null;
   whatsapp: string;
+  // Parsed from Outlet.lokasi (a Frappe Geolocation field, stored as a
+  // GeoJSON FeatureCollection) — null when the outlet has no pin set yet.
+  // Lets the app recommend the nearest outlet to the customer's own GPS
+  // position.
+  latitude: number | null;
+  longitude: number | null;
   // Warehouse this outlet's stock lives in (Outlet.warehouse in ERPNext) —
   // used to filter the catalog to items in stock at this outlet.
   warehouse: string | null;

@@ -16,6 +16,25 @@ function normalizeWhatsapp(raw: string | null): string {
   return digits.startsWith("0") ? `62${digits.slice(1)}` : digits;
 }
 
+// Outlet.lokasi is a Frappe Geolocation field — a GeoJSON FeatureCollection
+// string with one Point feature, coordinates as [lng, lat] per the GeoJSON
+// spec. Pulls out the first point, or null when unset/malformed.
+function parseLokasi(raw: string | null): { latitude: number | null; longitude: number | null } {
+  if (!raw) return { latitude: null, longitude: null };
+  try {
+    const geo = JSON.parse(raw) as {
+      features?: { geometry?: { type?: string; coordinates?: [number, number] } }[];
+    };
+    const coords = geo.features?.[0]?.geometry?.coordinates;
+    if (!coords || coords.length !== 2) return { latitude: null, longitude: null };
+    const [lng, lat] = coords;
+    if (typeof lat !== "number" || typeof lng !== "number") return { latitude: null, longitude: null };
+    return { latitude: lat, longitude: lng };
+  } catch {
+    return { latitude: null, longitude: null };
+  }
+}
+
 export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Promise<Outlet[]> => {
   // Outlet list/warehouse mapping rarely changes — safe to cache a few minutes.
   setResponseHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=120");
@@ -33,6 +52,7 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
       warehouse: string | null;
       custom_image: string | null;
       custom_description: string | null;
+      lokasi: string | null;
     }[];
   }>("/api/resource/Outlet", {
     params: {
@@ -45,6 +65,7 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
         "warehouse",
         "custom_image",
         "custom_description",
+        "lokasi",
       ]),
       filters: jsonFilters([
         ["is_active", "=", 1],
@@ -61,6 +82,7 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
     city: o.city,
     territory: o.teritory,
     whatsapp: normalizeWhatsapp(o.custom_whatsapp),
+    ...parseLokasi(o.lokasi),
     warehouse: o.warehouse,
     image: o.custom_image ? `${config.url}${o.custom_image}` : null,
     description: o.custom_description || null,
