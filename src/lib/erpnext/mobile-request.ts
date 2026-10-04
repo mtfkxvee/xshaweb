@@ -43,6 +43,10 @@ export function proxyPrivateImage(imageUrl: string, requestUrl: string): string 
   const idx = imageUrl.indexOf(marker);
   if (idx === -1) return imageUrl;
   const path = imageUrl.slice(idx);
-  const origin = new URL(requestUrl).origin;
+  // Behind the TLS-terminating proxy the request URL reaches us as http://,
+  // which Android release builds block. Force https for any non-local host.
+  const parsed = new URL(requestUrl);
+  const scheme = parsed.hostname === "localhost" ? parsed.protocol : "https:";
+  const origin = `${scheme}//${parsed.host}`;
   return `${origin}/api/mobile/image-proxy?path=${encodeURIComponent(path)}`;
 }
