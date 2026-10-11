@@ -31,8 +31,10 @@ import { Route as ApiMobileProductsRouteImport } from './routes/api/mobile/produ
 import { Route as ApiMobilePromoBannersRouteImport } from './routes/api/mobile/promo-banners'
 import { Route as ApiMobilePromoProductsRouteImport } from './routes/api/mobile/promo-products'
 import { Route as ApiMobilePromoRuleProductsRouteImport } from './routes/api/mobile/promo-rule-products'
+import { Route as ApiMobilePushTokenRouteImport } from './routes/api/mobile/push-token'
 import { Route as ApiMobileQuotationsRouteImport } from './routes/api/mobile/quotations'
 import { Route as ApiMobileRouteDistanceRouteImport } from './routes/api/mobile/route-distance'
+import { Route as ApiNotificationsDeliveryRouteImport } from './routes/api/notifications/delivery'
 import { Route as ApiPaymentsDokuNotificationRouteImport } from './routes/api/payments/doku-notification'
 import { Route as ApiMobileAuthCompleteProfileRouteImport } from './routes/api/mobile/auth.complete-profile'
 import { Route as ApiMobileAuthLoginRouteImport } from './routes/api/mobile/auth.login'
@@ -158,6 +160,11 @@ const ApiMobilePromoRuleProductsRoute =
     path: '/api/mobile/promo-rule-products',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiMobilePushTokenRoute = ApiMobilePushTokenRouteImport.update({
+  id: '/api/mobile/push-token',
+  path: '/api/mobile/push-token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMobileQuotationsRoute = ApiMobileQuotationsRouteImport.update({
   id: '/api/mobile/quotations',
   path: '/api/mobile/quotations',
@@ -168,6 +175,12 @@ const ApiMobileRouteDistanceRoute = ApiMobileRouteDistanceRouteImport.update({
   path: '/api/mobile/route-distance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNotificationsDeliveryRoute =
+  ApiNotificationsDeliveryRouteImport.update({
+    id: '/api/notifications/delivery',
+    path: '/api/notifications/delivery',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPaymentsDokuNotificationRoute =
   ApiPaymentsDokuNotificationRouteImport.update({
     id: '/api/payments/doku-notification',
@@ -263,8 +276,10 @@ export interface FileRoutesByFullPath {
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
   '/api/mobile/promo-rule-products': typeof ApiMobilePromoRuleProductsRoute
+  '/api/mobile/push-token': typeof ApiMobilePushTokenRoute
   '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
   '/api/mobile/route-distance': typeof ApiMobileRouteDistanceRoute
+  '/api/notifications/delivery': typeof ApiNotificationsDeliveryRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -302,8 +317,10 @@ export interface FileRoutesByTo {
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
   '/api/mobile/promo-rule-products': typeof ApiMobilePromoRuleProductsRoute
+  '/api/mobile/push-token': typeof ApiMobilePushTokenRoute
   '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
   '/api/mobile/route-distance': typeof ApiMobileRouteDistanceRoute
+  '/api/notifications/delivery': typeof ApiNotificationsDeliveryRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -342,8 +359,10 @@ export interface FileRoutesById {
   '/api/mobile/promo-banners': typeof ApiMobilePromoBannersRoute
   '/api/mobile/promo-products': typeof ApiMobilePromoProductsRoute
   '/api/mobile/promo-rule-products': typeof ApiMobilePromoRuleProductsRoute
+  '/api/mobile/push-token': typeof ApiMobilePushTokenRoute
   '/api/mobile/quotations': typeof ApiMobileQuotationsRoute
   '/api/mobile/route-distance': typeof ApiMobileRouteDistanceRoute
+  '/api/notifications/delivery': typeof ApiNotificationsDeliveryRoute
   '/api/payments/doku-notification': typeof ApiPaymentsDokuNotificationRoute
   '/api/mobile/auth/complete-profile': typeof ApiMobileAuthCompleteProfileRoute
   '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
@@ -383,8 +402,10 @@ export interface FileRouteTypes {
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
     | '/api/mobile/promo-rule-products'
+    | '/api/mobile/push-token'
     | '/api/mobile/quotations'
     | '/api/mobile/route-distance'
+    | '/api/notifications/delivery'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -422,8 +443,10 @@ export interface FileRouteTypes {
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
     | '/api/mobile/promo-rule-products'
+    | '/api/mobile/push-token'
     | '/api/mobile/quotations'
     | '/api/mobile/route-distance'
+    | '/api/notifications/delivery'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -461,8 +484,10 @@ export interface FileRouteTypes {
     | '/api/mobile/promo-banners'
     | '/api/mobile/promo-products'
     | '/api/mobile/promo-rule-products'
+    | '/api/mobile/push-token'
     | '/api/mobile/quotations'
     | '/api/mobile/route-distance'
+    | '/api/notifications/delivery'
     | '/api/payments/doku-notification'
     | '/api/mobile/auth/complete-profile'
     | '/api/mobile/auth/login'
@@ -501,8 +526,10 @@ export interface RootRouteChildren {
   ApiMobilePromoBannersRoute: typeof ApiMobilePromoBannersRoute
   ApiMobilePromoProductsRoute: typeof ApiMobilePromoProductsRoute
   ApiMobilePromoRuleProductsRoute: typeof ApiMobilePromoRuleProductsRoute
+  ApiMobilePushTokenRoute: typeof ApiMobilePushTokenRoute
   ApiMobileQuotationsRoute: typeof ApiMobileQuotationsRoute
   ApiMobileRouteDistanceRoute: typeof ApiMobileRouteDistanceRoute
+  ApiNotificationsDeliveryRoute: typeof ApiNotificationsDeliveryRoute
   ApiPaymentsDokuNotificationRoute: typeof ApiPaymentsDokuNotificationRoute
   ApiMobileAuthCompleteProfileRoute: typeof ApiMobileAuthCompleteProfileRoute
   ApiMobileAuthLoginRoute: typeof ApiMobileAuthLoginRoute
@@ -673,6 +700,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobilePromoRuleProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/push-token': {
+      id: '/api/mobile/push-token'
+      path: '/api/mobile/push-token'
+      fullPath: '/api/mobile/push-token'
+      preLoaderRoute: typeof ApiMobilePushTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/quotations': {
       id: '/api/mobile/quotations'
       path: '/api/mobile/quotations'
@@ -685,6 +719,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mobile/route-distance'
       fullPath: '/api/mobile/route-distance'
       preLoaderRoute: typeof ApiMobileRouteDistanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/notifications/delivery': {
+      id: '/api/notifications/delivery'
+      path: '/api/notifications/delivery'
+      fullPath: '/api/notifications/delivery'
+      preLoaderRoute: typeof ApiNotificationsDeliveryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/payments/doku-notification': {
@@ -818,8 +859,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobilePromoBannersRoute: ApiMobilePromoBannersRoute,
   ApiMobilePromoProductsRoute: ApiMobilePromoProductsRoute,
   ApiMobilePromoRuleProductsRoute: ApiMobilePromoRuleProductsRoute,
+  ApiMobilePushTokenRoute: ApiMobilePushTokenRoute,
   ApiMobileQuotationsRoute: ApiMobileQuotationsRoute,
   ApiMobileRouteDistanceRoute: ApiMobileRouteDistanceRoute,
+  ApiNotificationsDeliveryRoute: ApiNotificationsDeliveryRoute,
   ApiPaymentsDokuNotificationRoute: ApiPaymentsDokuNotificationRoute,
   ApiMobileAuthCompleteProfileRoute: ApiMobileAuthCompleteProfileRoute,
   ApiMobileAuthLoginRoute: ApiMobileAuthLoginRoute,

@@ -428,38 +428,89 @@ export async function resolveMyPesanan(customer: Customer | null): Promise<Pesan
     },
   });
 
-  // Ordered quotations that have a linked Sales Order might also have a
-  // Delivery Request staff created for that order — one batched lookup for
-  // all of them, rather than one request per row.
-  const salesOrderNames = res.data
-    .map((q) => q.custom_sales_order)
-    .filter((so): so is string => !!so);
+  // An Ordered quotation's delivery progress lives on a Delivery Request,
+  // which ERPNext only links to the *Sales Invoice* staff create from the
+  // Sales Order (Delivery Request.sales_invoice) — there is no direct
+  // Delivery Request -> Sales Order field. So the chain is walked with the
+  // standard ERPNext links, one batched lookup per hop instead of one per
+  // row: Quotation -> Sales Order (Sales Order Item.prevdoc_docname) ->
+  // Sales Invoice (Sales Invoice Item.sales_order) -> Delivery Request.
+  // Quotation.custom_sales_order is only a hint: it can't be written after
+  // submit, so it's usually empty and must not be relied on.
+  const orderedQuotations = res.data.filter((q) => q.status === "Ordered").map((q) => q.name);
 
-  const deliveryStatusBySalesOrder = new Map<string, string>();
-  if (salesOrderNames.length > 0) {
-    const drRes = await erpRequest<{
-      data: { custom_sales_order: string; delivery_status: string }[];
-    }>("/api/resource/Delivery Request", {
-      params: {
-        fields: jsonFields(["custom_sales_order", "delivery_status"]),
-        filters: jsonFilters([["custom_sales_order", "in", salesOrderNames]]),
-        order_by: "creation desc",
-        limit_page_length: "0",
+  const salesOrderByQuotation = new Map<string, string>();
+  for (const q of res.data) {
+    if (q.custom_sales_order) salesOrderByQuotation.set(q.name, q.custom_sales_order);
+  }
+  const unlinked = orderedQuotations.filter((name) => !salesOrderByQuotation.has(name));
+  if (unlinked.length > 0) {
+    const soRes = await erpRequest<{ data: { parent: string; prevdoc_docname: string }[] }>(
+      "/api/resource/Sales Order Item",
+      {
+        params: {
+          parent: "Sales Order",
+          fields: jsonFields(["parent", "prevdoc_docname"]),
+          filters: jsonFilters([["prevdoc_docname", "in", unlinked]]),
+          limit_page_length: "0",
+        },
       },
-    });
-    // Most recent Delivery Request per Sales Order wins (a redo/replacement
-    // delivery attempt) — order_by desc + only-set-if-absent achieves that.
-    for (const dr of drRes.data) {
-      if (!deliveryStatusBySalesOrder.has(dr.custom_sales_order)) {
-        deliveryStatusBySalesOrder.set(dr.custom_sales_order, dr.delivery_status);
+    );
+    for (const row of soRes.data) {
+      if (!salesOrderByQuotation.has(row.prevdoc_docname)) {
+        salesOrderByQuotation.set(row.prevdoc_docname, row.parent);
       }
     }
   }
 
+  const salesOrderNames = [...new Set(salesOrderByQuotation.values())];
+  const invoicesBySalesOrder = new Map<string, Set<string>>();
+  if (salesOrderNames.length > 0) {
+    const siRes = await erpRequest<{ data: { parent: string; sales_order: string }[] }>(
+      "/api/resource/Sales Invoice Item",
+      {
+        params: {
+          parent: "Sales Invoice",
+          fields: jsonFields(["parent", "sales_order"]),
+          filters: jsonFilters([["sales_order", "in", salesOrderNames]]),
+          limit_page_length: "0",
+        },
+      },
+    );
+    for (const row of siRes.data) {
+      const set = invoicesBySalesOrder.get(row.sales_order) ?? new Set<string>();
+      set.add(row.parent);
+      invoicesBySalesOrder.set(row.sales_order, set);
+    }
+  }
+
+  const invoiceNames = [...new Set([...invoicesBySalesOrder.values()].flatMap((s) => [...s]))];
+  let deliveryRequests: { sales_invoice: string; delivery_status: string }[] = [];
+  if (invoiceNames.length > 0) {
+    const drRes = await erpRequest<{
+      data: { sales_invoice: string; delivery_status: string }[];
+    }>("/api/resource/Delivery Request", {
+      params: {
+        fields: jsonFields(["sales_invoice", "delivery_status"]),
+        filters: jsonFilters([["sales_invoice", "in", invoiceNames]]),
+        order_by: "creation desc",
+        limit_page_length: "0",
+      },
+    });
+    // Newest first, so the most recent Delivery Request for an order wins
+    // (a redo/replacement delivery attempt).
+    deliveryRequests = drRes.data;
+  }
+
+  const deliveryStatusForQuotation = (quotation: string): string | null => {
+    const salesOrder = salesOrderByQuotation.get(quotation);
+    const invoices = salesOrder ? invoicesBySalesOrder.get(salesOrder) : undefined;
+    if (!invoices) return null;
+    return deliveryRequests.find((dr) => invoices.has(dr.sales_invoice))?.delivery_status ?? null;
+  };
+
   return res.data.map((q): Pesanan => {
-    const deliveryStatus = q.custom_sales_order
-      ? (deliveryStatusBySalesOrder.get(q.custom_sales_order) ?? null)
-      : null;
+    const deliveryStatus = deliveryStatusForQuotation(q.name);
 
     let stage: OrderStage;
     if (q.status !== "Ordered") stage = "unpaid";

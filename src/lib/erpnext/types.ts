@@ -83,8 +83,9 @@ export type Order = {
 //   unpaid     Quotation submitted, DOKU hasn't confirmed payment yet
 //   preparing  DOKU confirmed payment, converted to a Sales Order — no
 //              Delivery Request linked to it yet
-//   shipping   A Delivery Request is linked (Quotation.custom_sales_order
-//              -> Delivery Request.custom_sales_order), status not yet
+//   shipping   A Delivery Request exists for the Sales Invoice made from that
+//              Sales Order (Quotation -> Sales Order -> Sales Invoice ->
+//              Delivery Request.sales_invoice), status not yet
 //              "Terkirim" (Delivered)
 //   completed  That Delivery Request's status is "Terkirim"
 //
