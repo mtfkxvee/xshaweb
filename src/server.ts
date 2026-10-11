@@ -51,6 +51,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const url = new URL(request.url);
+    // Permanent redirect www -> apex so search engines see one host.
+    if (url.hostname === "www.x-sha.id") {
+      return Response.redirect(`https://x-sha.id${url.pathname}${url.search}`, 301);
+    }
     if (url.pathname === "/sitemap.xml") {
       try {
         // request.url reports http:// here in production (something in

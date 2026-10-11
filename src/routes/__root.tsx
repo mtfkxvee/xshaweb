@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -97,7 +98,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // self-hosted (bundled via styles.css @import from node_modules) so
       // the page never depends on a fonts.googleapis.com round trip.
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/xsha-logo.png", type: "image/png" },
+      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+      { rel: "icon", href: "/favicon-96x96.png", type: "image/png", sizes: "96x96" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/site.webmanifest" },
     ] as Array<Record<string, string>>,
   }),
   shellComponent: RootShell,
@@ -122,10 +126,17 @@ const THEME_INIT_SCRIPT = `
 `;
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Canonical always points at the apex (non-www) https origin, path only
+  // (query strings like ?q= are intentionally dropped).
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <html lang="id">
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <link
+          rel="canonical"
+          href={`https://x-sha.id${pathname === "/" ? "/" : pathname.replace(/\/+$/, "")}`}
+        />
         <HeadContent />
       </head>
       <body>

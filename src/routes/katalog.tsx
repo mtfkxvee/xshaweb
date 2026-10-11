@@ -19,7 +19,7 @@ export const Route = createFileRoute("/katalog")({
       {
         name: "description",
         content:
-          "Jelajahi katalog X-SHA: batik, tenun, aksesoris kulit, anyaman, kopi Galunggung, dan kelom geulis dengan filter kategori.",
+          "Jelajahi 65.000+ produk X-SHA: fashion, supermarket, kasur & karpet, elektronik, dan perlengkapan rumah. Filter per departemen dan pesan lewat WhatsApp.",
       },
       { property: "og:title", content: "Katalog Produk | X-SHA Tasikmalaya" },
       {

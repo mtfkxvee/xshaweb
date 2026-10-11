@@ -19,7 +19,7 @@ export const Route = createFileRoute("/promo")({
       {
         name: "description",
         content:
-          "Penawaran mingguan X-SHA: diskon batik, kelom geulis, kopi Galunggung, dan promo eksklusif khusus member.",
+          "Promo mingguan X-SHA: diskon fashion, kebutuhan harian, kasur & karpet, hingga elektronik, plus penawaran khusus member.",
       },
       { property: "og:title", content: "Promo Spesial | X-SHA Tasikmalaya" },
       {

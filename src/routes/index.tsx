@@ -35,7 +35,7 @@ export const Route = createFileRoute("/")({
         {
           name: "description",
           content:
-            "Belanja produk kurasi halal khas Tasikmalaya: batik, tenun, kelom geulis, kopi Galunggung. 16+ outlet & 40.000+ member setia.",
+            "Belanja fashion, kebutuhan harian, kasur & karpet, hingga elektronik di X-SHA Tasikmalaya. 16+ outlet, 65.000+ item, 40.000+ member sejak 2006.",
         },
         { property: "og:title", content: "X-SHA | X-TRA ORDINARY SHOPPING AMBIENCE" },
         {
