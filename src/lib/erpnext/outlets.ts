@@ -49,7 +49,7 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
       city: string | null;
       teritory: string | null;
       custom_whatsapp: string | null;
-      warehouse: string | null;
+      warehouse_consumer_apps: string | null;
       custom_image: string | null;
       custom_description: string | null;
       lokasi: string | null;
@@ -62,7 +62,7 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
         "city",
         "teritory",
         "custom_whatsapp",
-        "warehouse",
+        "warehouse_consumer_apps",
         "custom_image",
         "custom_description",
         "lokasi",
@@ -83,7 +83,7 @@ export const getOutlets = createServerFn({ method: "GET" }).handler(async (): Pr
     territory: o.teritory,
     whatsapp: normalizeWhatsapp(o.custom_whatsapp),
     ...parseLokasi(o.lokasi),
-    warehouse: o.warehouse,
+    warehouse: o.warehouse_consumer_apps,
     image: o.custom_image ? `${config.url}${o.custom_image}` : null,
     description: o.custom_description || null,
   }));

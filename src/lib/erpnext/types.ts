@@ -35,7 +35,7 @@ export type Outlet = {
   // position.
   latitude: number | null;
   longitude: number | null;
-  // Warehouse this outlet's stock lives in (Outlet.warehouse in ERPNext) —
+  // Warehouse this outlet's stock lives in (Outlet.warehouse_consumer_apps in ERPNext) —
   // used to filter the catalog to items in stock at this outlet.
   warehouse: string | null;
   image: string | null;
