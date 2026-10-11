@@ -4,68 +4,11 @@ import type { ItemGroup, Order, Outlet, Product, SiteSettings } from "./types";
 // Fallback data used only when ERPNEXT_URL/API credentials are not
 // configured (local dev, or before the integration is wired up), so the
 // site keeps rendering instead of hard-failing.
-export const mockProducts: Product[] = [
-  {
-    id: "batik-royal",
-    name: "Batik Tasik Royal Violet",
-    category: "Fashion • Batik",
-    price: 450000,
-    image: IMG.batik,
-    alt: "Kain batik Tasik Royal Violet dengan motif tradisional ungu keemasan",
-  },
-  {
-    id: "tenun-heritage",
-    name: "Modern Tenun Heritage",
-    category: "Fashion • Tenun",
-    price: 890000,
-    image: IMG.promoBatik,
-    alt: "Kemeja tenun heritage modern pada manekin minimalis",
-  },
-  {
-    id: "signature-wallet",
-    name: "Signature Wallet Series",
-    category: "Aksesoris • Kulit",
-    price: 325000,
-    image: IMG.wallet,
-    alt: "Set aksesoris kulit mewah bernuansa violet di studio minimalis",
-  },
-  {
-    id: "eco-woven",
-    name: "Eco-Woven Storage Set",
-    category: "Home Decor • Anyaman",
-    price: 210000,
-    image: IMG.baskets,
-    alt: "Keranjang anyaman tangan untuk dekorasi rumah modern",
-  },
-  {
-    id: "galunggung-arabica",
-    name: "Galunggung Arabica Gold",
-    category: "Gourmet • Kopi",
-    price: 125000,
-    image: IMG.coffee,
-    alt: "Biji kopi arabika Tasikmalaya dalam kemasan ungu premium",
-  },
-  {
-    id: "kelom-geulis",
-    name: "Kelom Geulis Modern Art",
-    category: "Fashion • Alas Kaki",
-    price: 420000,
-    image: IMG.kelom,
-    alt: "Kelom geulis kayu dengan ukiran artistik modern",
-  },
-];
+export const mockProducts: Product[] = [];
 
-// Flat single-level fallback for local dev without ERPNext — the real
-// integration has a 3-level Department > Category > Sub Category tree
+// Empty on purpose: no placeholder categories; the real tree comes from ERPNext
 // (see getItemGroupChildren in products.ts).
-export const mockItemGroups: ItemGroup[] = [
-  { name: "Fashion • Batik", label: "Fashion • Batik", parent: null, isGroup: false },
-  { name: "Fashion • Tenun", label: "Fashion • Tenun", parent: null, isGroup: false },
-  { name: "Aksesoris • Kulit", label: "Aksesoris • Kulit", parent: null, isGroup: false },
-  { name: "Home Decor • Anyaman", label: "Home Decor • Anyaman", parent: null, isGroup: false },
-  { name: "Gourmet • Kopi", label: "Gourmet • Kopi", parent: null, isGroup: false },
-  { name: "Fashion • Alas Kaki", label: "Fashion • Alas Kaki", parent: null, isGroup: false },
-];
+export const mockItemGroups: ItemGroup[] = [];
 
 export const mockOutlets: Outlet[] = [
   {
@@ -138,7 +81,6 @@ export const mockSiteSettings: SiteSettings = {
       image: IMG.hero,
       alt: "Etalase produk heritage Tasikmalaya di ruang ritel premium bernuansa violet",
     },
-    { image: IMG.promoBatik, alt: "Koleksi batik signature dengan pencahayaan sinematik ungu" },
     {
       image: IMG.office,
       alt: "Interior kantor korporat X-SHA yang modern dengan aksen pencahayaan ungu",
