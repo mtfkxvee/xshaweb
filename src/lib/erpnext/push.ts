@@ -193,7 +193,7 @@ export async function notifyDeliveryUpdate(
     }>(`/api/resource/Sales Invoice/${encodeURIComponent(salesInvoice)}`);
 
     let orderId = salesInvoice;
-    const salesOrder = si.data.items.find((i) => i.sales_order)?.sales_order;
+    const salesOrder = si.data.items.find((i) => i.sales_order)?.sales_order ?? null;
     if (salesOrder) {
       const so = await erpRequest<{ data: { items: { prevdoc_docname: string | null }[] } }>(
         `/api/resource/Sales Order/${encodeURIComponent(salesOrder)}`,
@@ -201,14 +201,19 @@ export async function notifyDeliveryUpdate(
       orderId = so.data.items.find((i) => i.prevdoc_docname)?.prevdoc_docname ?? salesOrder;
     }
 
-    const message = deliveryMessage(dr.data.delivery_status ?? "", event, orderId);
+    // Same document number "Pesanan Saya" shows at this point: the Sales
+    // Order while it's being shipped, the Sales Invoice once delivered.
+    const status = dr.data.delivery_status ?? "";
+    const label = status === "Terkirim" ? salesInvoice : (salesOrder ?? orderId);
+
+    const message = deliveryMessage(status, event, label);
     if (!message) return { ok: true, sent: 0, skipped: "status has no notification" };
 
     const sent = await sendPushToCustomer(si.data.customer, {
       ...message,
       // Tapping the notification opens this order in the app (OrderDetail,
-      // source "pesanan" = Quotation id).
-      data: { type: "delivery", orderId },
+      // source "pesanan" = Quotation id); `label` is the number to show.
+      data: { type: "delivery", orderId, label },
     });
     return { ok: true, sent };
   } catch (error) {

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, setResponseHeader } from "@tanstack/react-start/server";
 import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
-import { erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
+import { ErpnextError, erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
 import { createDokuCheckoutSession } from "./doku";
 import { mockOrders } from "./mock-data";
@@ -36,6 +36,86 @@ function toGeoJsonPoint(lat: number, lng: number): string {
     type: "FeatureCollection",
     features: [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [lng, lat] } }],
   });
+}
+
+// ERPNext stores timestamps in the business's own timezone (Asia/Jakarta),
+// same reasoning as erpToday() in client.ts.
+function erpTimestamp(date: Date): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+const DUPLICATE_CHECKOUT_WINDOW_MS = 10 * 60_000;
+
+// The same customer's still-unpaid, submitted Quotation from the last few
+// minutes that matches this cart exactly (same items and quantities, same
+// total, same outlet and delivery point) — or null. Matching on content
+// rather than a client-supplied key keeps retries safe even from older app
+// versions that don't send one.
+async function findRecentOpenQuotation(
+  customerId: string,
+  outletCode: string | undefined,
+  lines: { item_code: string; qty: number; rate: number }[],
+  deliveryCoords?: { latitude: number; longitude: number },
+): Promise<string | null> {
+  const since = erpTimestamp(new Date(Date.now() - DUPLICATE_CHECKOUT_WINDOW_MS));
+  const filters: (string | number)[][] = [
+    ["party_name", "=", customerId],
+    ["docstatus", "=", 1],
+    ["status", "=", "Open"],
+    ["creation", ">=", since],
+  ];
+  if (outletCode) filters.push(["custom_outlet", "=", outletCode]);
+
+  const list = await erpRequest<{
+    data: { name: string; grand_total: number; custom_latitude: number | null; custom_longitude: number | null }[];
+  }>("/api/resource/Quotation", {
+    params: {
+      fields: jsonFields(["name", "grand_total", "custom_latitude", "custom_longitude"]),
+      filters: jsonFilters(filters),
+      order_by: "creation desc",
+      limit_page_length: "5",
+    },
+  });
+
+  const total = lines.reduce((sum, line) => sum + line.rate * line.qty, 0);
+  const sameSpot = (a: number | null, b: number) => a != null && Math.abs(a - b) < 1e-6;
+
+  for (const candidate of list.data) {
+    if (Math.round(candidate.grand_total) !== Math.round(total)) continue;
+    if (
+      deliveryCoords &&
+      !(
+        sameSpot(candidate.custom_latitude, deliveryCoords.latitude) &&
+        sameSpot(candidate.custom_longitude, deliveryCoords.longitude)
+      )
+    ) {
+      continue;
+    }
+
+    const doc = await erpRequest<{ data: { items: { item_code: string; qty: number }[] } }>(
+      `/api/resource/Quotation/${encodeURIComponent(candidate.name)}`,
+    );
+    const qtyByItem = new Map<string, number>();
+    for (const it of doc.data.items) {
+      qtyByItem.set(it.item_code, (qtyByItem.get(it.item_code) ?? 0) + it.qty);
+    }
+    const wanted = new Map<string, number>();
+    for (const line of lines) wanted.set(line.item_code, (wanted.get(line.item_code) ?? 0) + line.qty);
+
+    const same =
+      qtyByItem.size === wanted.size && [...wanted].every(([code, qty]) => qtyByItem.get(code) === qty);
+    if (same) return candidate.name;
+  }
+  return null;
 }
 
 export async function submitOrder(
@@ -80,7 +160,17 @@ export async function submitOrder(
       }),
     );
 
-    const res = await erpRequest<{ data: { name: string } }>("/api/resource/Quotation", {
+    // A retried checkout (timeout, double tap, flaky network) would
+    // otherwise create a second Quotation and DOKU session for the same
+    // cart — two things to pay. If this customer already has an identical,
+    // still-unpaid order from the last few minutes, that one is reused.
+    const reused = await findRecentOpenQuotation(customer.id, outletCode, items_, deliveryCoords).catch(
+      () => null,
+    );
+
+    const res = reused
+      ? { data: { name: reused } }
+      : await erpRequest<{ data: { name: string } }>("/api/resource/Quotation", {
       method: "POST",
       body: {
         quotation_to: "Customer",
@@ -120,10 +210,12 @@ export async function submitOrder(
     // in-progress record, not something staff should act on). Best-effort:
     // if this fails, the order still exists as a draft and checkout isn't
     // blocked by it.
-    await erpRequest(`/api/resource/Quotation/${encodeURIComponent(orderId)}`, {
-      method: "PUT",
-      body: { docstatus: 1 },
-    }).catch(() => {});
+    if (!reused) {
+      await erpRequest(`/api/resource/Quotation/${encodeURIComponent(orderId)}`, {
+        method: "PUT",
+        body: { docstatus: 1 },
+      }).catch(() => {});
+    }
 
     if (returnUrl) {
       const total = items_.reduce((sum, line) => sum + line.rate * line.qty, 0);
@@ -188,12 +280,51 @@ export async function resolveOrders(customer: Customer | null): Promise<Order[]>
     },
   });
 
-  return res.data.map((inv) => ({
-    id: inv.name,
-    date: inv.posting_date,
-    status: inv.status,
-    total: inv.grand_total,
-  }));
+  // An invoice made from an online order (its lines point back at a Sales
+  // Order) is created the moment staff press "Siapkan" — long before the
+  // goods arrive. Keep those out of the history until their Delivery
+  // Request is "Terkirim"; plain in-store invoices have no Sales Order and
+  // always show.
+  const invoiceNames = res.data.map((inv) => inv.name);
+  const online = new Set<string>();
+  const delivered = new Set<string>();
+  if (invoiceNames.length > 0) {
+    const itemRes = await erpRequest<{ data: { parent: string }[] }>("/api/resource/Sales Invoice Item", {
+      params: {
+        parent: "Sales Invoice",
+        fields: jsonFields(["parent"]),
+        filters: jsonFilters([
+          ["parent", "in", invoiceNames],
+          ["sales_order", "is", "set"],
+        ]),
+        limit_page_length: "0",
+      },
+    });
+    for (const row of itemRes.data) online.add(row.parent);
+
+    if (online.size > 0) {
+      const drRes = await erpRequest<{ data: { sales_invoice: string }[] }>("/api/resource/Delivery Request", {
+        params: {
+          fields: jsonFields(["sales_invoice"]),
+          filters: jsonFilters([
+            ["sales_invoice", "in", [...online]],
+            ["delivery_status", "=", "Terkirim"],
+          ]),
+          limit_page_length: "0",
+        },
+      });
+      for (const row of drRes.data) delivered.add(row.sales_invoice);
+    }
+  }
+
+  return res.data
+    .filter((inv) => !online.has(inv.name) || delivered.has(inv.name))
+    .map((inv) => ({
+      id: inv.name,
+      date: inv.posting_date,
+      status: inv.status,
+      total: inv.grand_total,
+    }));
 }
 
 // A single invoice's full detail (line items included) — GETting one
@@ -286,43 +417,100 @@ export async function resolveQuotationDetail(
   }
 }
 
-export type ConvertResult = { ok: true; salesOrderId: string } | { ok: false; message: string };
+export type ConvertResult =
+  | { ok: true; salesOrderId: string }
+  // `retryable` tells the DOKU webhook whether answering with an error (so
+  // DOKU re-sends the notification) can ever help — false only for an
+  // invoice number that isn't one of our Quotations at all.
+  | { ok: false; message: string; retryable: boolean };
+
+type SalesOrderRef = { name: string; docstatus: number; creation: string };
+
+// Every live (draft or submitted) Sales Order already made from this
+// Quotation, oldest first — what makes payment confirmation safe to
+// repeat: an earlier attempt's result is found and reused instead of
+// being duplicated.
+async function listSalesOrdersForQuotation(quotationId: string): Promise<SalesOrderRef[]> {
+  const items = await erpRequest<{ data: { parent: string }[] }>("/api/resource/Sales Order Item", {
+    params: {
+      parent: "Sales Order",
+      fields: jsonFields(["parent"]),
+      filters: jsonFilters([["prevdoc_docname", "=", quotationId]]),
+      limit_page_length: "0",
+    },
+  });
+  const names = [...new Set(items.data.map((row) => row.parent))];
+  if (names.length === 0) return [];
+
+  const res = await erpRequest<{ data: SalesOrderRef[] }>("/api/resource/Sales Order", {
+    params: {
+      fields: jsonFields(["name", "docstatus", "creation"]),
+      filters: jsonFilters([
+        ["name", "in", names],
+        ["docstatus", "in", [0, 1]],
+      ]),
+      order_by: "creation asc, name asc",
+      limit_page_length: "0",
+    },
+  });
+  return res.data;
+}
 
 // Called by the DOKU notification webhook once a payment is confirmed —
 // converts the (already-submitted) Quotation created at checkout into a
 // submitted Sales Order, so staff see it as a real, paid order instead of
-// a Quotation they'd otherwise have to action manually. Idempotent: a
-// Quotation ERPNext has already converted flips its own status to
-// "Ordered", which we check for up front so a duplicate/retried DOKU
-// notification (their docs mention automatic retries) doesn't error out
-// or create a second Sales Order for the same payment.
+// a Quotation they'd otherwise have to action manually.
+//
+// Idempotent end to end — DOKU retries notifications (and the webhook now
+// asks it to retry on failure), so every step tolerates being re-run:
+//  - a Quotation already "Ordered" is done;
+//  - a Sales Order an earlier attempt already submitted is reused, and a
+//    draft it left behind (failed before submit) is submitted rather than
+//    duplicated;
+//  - two attempts racing each other both create a draft, then the oldest
+//    one wins and the other deletes itself, with a final check that
+//    cancels any second *submitted* one — so one payment always ends as
+//    exactly one Sales Order.
 export async function convertQuotationToSalesOrder(quotationId: string): Promise<ConvertResult> {
-  if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
+  if (!isErpnextConfigured()) {
+    return { ok: false, message: "ERPNext belum dikonfigurasi.", retryable: true };
+  }
 
   try {
-    const existing = await erpRequest<{
-      data: {
-        status: string;
-        custom_sales_order: string | null;
-        custom_outlet: string | null;
-        custom_latitude: number | null;
-        custom_longitude: number | null;
-        delivery_point: string | null;
-        grand_total: number;
-      };
-    }>(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
-      params: {
-        fields: jsonFields([
-          "status",
-          "custom_sales_order",
-          "custom_outlet",
-          "custom_latitude",
-          "custom_longitude",
-          "delivery_point",
-          "grand_total",
-        ]),
-      },
-    });
+    let existing;
+    try {
+      existing = await erpRequest<{
+        data: {
+          status: string;
+          custom_sales_order: string | null;
+          custom_outlet: string | null;
+          custom_latitude: number | null;
+          custom_longitude: number | null;
+          delivery_point: string | null;
+          grand_total: number;
+        };
+      }>(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
+        params: {
+          fields: jsonFields([
+            "status",
+            "custom_sales_order",
+            "custom_outlet",
+            "custom_latitude",
+            "custom_longitude",
+            "delivery_point",
+            "grand_total",
+          ]),
+        },
+      });
+    } catch (error) {
+      // Not one of our Quotations (e.g. a DOKU test invoice) — nothing a
+      // retry could ever fix.
+      if (error instanceof ErpnextError && error.status === 404) {
+        return { ok: false, message: `Quotation ${quotationId} tidak ditemukan.`, retryable: false };
+      }
+      throw error;
+    }
+
     // A Quotation ERPNext has already mapped into a Sales Order flips to
     // this status on its own — nothing further to do for a retried
     // notification.
@@ -330,74 +518,120 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       return { ok: true, salesOrderId: existing.data.custom_sales_order ?? "" };
     }
 
-    // The cost center belongs to whichever outlet the customer checked out
-    // against — falls back to the company's own default only for the rare
-    // Quotation with no outlet on it (e.g. one created before this field
-    // existed).
-    let costCenter: string;
-    if (existing.data.custom_outlet) {
-      const outlet = await erpRequest<{ data: { cost_center: string } }>(
-        `/api/resource/Outlet/${encodeURIComponent(existing.data.custom_outlet)}`,
-        { params: { fields: jsonFields(["cost_center"]) } },
-      );
-      costCenter = outlet.data.cost_center;
-    } else {
-      const company = await erpRequest<{ data: { cost_center: string } }>(
-        `/api/resource/Company/${encodeURIComponent(COMPANY)}`,
-        { params: { fields: jsonFields(["cost_center"]) } },
-      );
-      costCenter = company.data.cost_center;
-    }
-    const deliveryDate = erpToday();
+    const found = await listSalesOrdersForQuotation(quotationId);
+    const submittedBefore = found.find((so) => so.docstatus === 1);
+    if (submittedBefore) return { ok: true, salesOrderId: submittedBefore.name };
 
-    const mapped = await erpRequest<{ message: Record<string, unknown> & { items: Record<string, unknown>[] } }>(
-      "/api/method/erpnext.selling.doctype.quotation.quotation.make_sales_order",
-      { params: { source_name: quotationId } },
-    );
+    // A draft left by an earlier attempt that died before submitting.
+    let salesOrderName: string | undefined = found[0]?.name;
 
-    const soDoc = {
-      ...mapped.message,
-      delivery_date: deliveryDate,
-      cost_center: costCenter,
-      // The mapper doesn't necessarily carry these custom fields over on
-      // its own, so they're copied explicitly from the source Quotation.
-      custom_outlet: existing.data.custom_outlet,
-      custom_latitude: existing.data.custom_latitude,
-      custom_longitude: existing.data.custom_longitude,
-      delivery_point: existing.data.delivery_point,
-      // The amount DOKU actually confirmed as paid — the Quotation's own
-      // grand_total, since that's exactly what was sent to DOKU as the
-      // session amount when checkout created it.
-      custom_payment_amount: existing.data.grand_total,
-      custom_payment_method: DOKU_PAYMENT_METHOD,
-      items: mapped.message.items.map((item) => ({
-        ...item,
+    if (!salesOrderName) {
+      // The cost center belongs to whichever outlet the customer checked out
+      // against — falls back to the company's own default only for the rare
+      // Quotation with no outlet on it (e.g. one created before this field
+      // existed).
+      let costCenter: string;
+      if (existing.data.custom_outlet) {
+        const outlet = await erpRequest<{ data: { cost_center: string } }>(
+          `/api/resource/Outlet/${encodeURIComponent(existing.data.custom_outlet)}`,
+          { params: { fields: jsonFields(["cost_center"]) } },
+        );
+        costCenter = outlet.data.cost_center;
+      } else {
+        const company = await erpRequest<{ data: { cost_center: string } }>(
+          `/api/resource/Company/${encodeURIComponent(COMPANY)}`,
+          { params: { fields: jsonFields(["cost_center"]) } },
+        );
+        costCenter = company.data.cost_center;
+      }
+      const deliveryDate = erpToday();
+
+      const mapped = await erpRequest<{ message: Record<string, unknown> & { items: Record<string, unknown>[] } }>(
+        "/api/method/erpnext.selling.doctype.quotation.quotation.make_sales_order",
+        { params: { source_name: quotationId } },
+      );
+
+      const soDoc = {
+        ...mapped.message,
         delivery_date: deliveryDate,
         cost_center: costCenter,
-      })),
-    };
+        // The mapper doesn't necessarily carry these custom fields over on
+        // its own, so they're copied explicitly from the source Quotation.
+        custom_outlet: existing.data.custom_outlet,
+        custom_latitude: existing.data.custom_latitude,
+        custom_longitude: existing.data.custom_longitude,
+        delivery_point: existing.data.delivery_point,
+        // The amount DOKU actually confirmed as paid — the Quotation's own
+        // grand_total, since that's exactly what was sent to DOKU as the
+        // session amount when checkout created it.
+        custom_payment_amount: existing.data.grand_total,
+        custom_payment_method: DOKU_PAYMENT_METHOD,
+        items: mapped.message.items.map((item) => ({
+          ...item,
+          delivery_date: deliveryDate,
+          cost_center: costCenter,
+        })),
+      };
 
-    const created = await erpRequest<{ data: { name: string } }>("/api/resource/Sales Order", {
-      method: "POST",
-      body: soDoc,
-    });
+      const created = await erpRequest<{ data: { name: string } }>("/api/resource/Sales Order", {
+        method: "POST",
+        body: soDoc,
+      });
+      salesOrderName = created.data.name;
 
-    await erpRequest(`/api/resource/Sales Order/${encodeURIComponent(created.data.name)}`, {
-      method: "PUT",
-      body: { docstatus: 1 },
-    });
+      // Another attempt may have created its own draft at the same moment:
+      // the oldest one is the single survivor, every other one deletes
+      // itself (and an already-submitted survivor means we're done).
+      const afterCreate = await listSalesOrdersForQuotation(quotationId);
+      const winner = afterCreate[0];
+      if (winner && winner.name !== salesOrderName) {
+        await erpRequest(`/api/resource/Sales Order/${encodeURIComponent(salesOrderName)}`, {
+          method: "DELETE",
+        }).catch(() => {});
+        if (winner.docstatus === 1) return { ok: true, salesOrderId: winner.name };
+        salesOrderName = winner.name;
+      }
+    }
+
+    try {
+      await erpRequest(`/api/resource/Sales Order/${encodeURIComponent(salesOrderName)}`, {
+        method: "PUT",
+        body: { docstatus: 1 },
+      });
+    } catch (error) {
+      // A racing attempt may have submitted this very draft first — that
+      // is success, anything else is a real failure to surface.
+      const now = await listSalesOrdersForQuotation(quotationId);
+      if (!now.some((so) => so.name === salesOrderName && so.docstatus === 1)) throw error;
+    }
+
+    // Last guard for the narrow window where two attempts each submitted
+    // their own draft: keep the oldest submitted Sales Order, cancel ours
+    // if it's the later one.
+    const submitted = (await listSalesOrdersForQuotation(quotationId)).filter((so) => so.docstatus === 1);
+    if (submitted.length > 1 && submitted[0].name !== salesOrderName) {
+      await erpRequest(`/api/resource/Sales Order/${encodeURIComponent(salesOrderName)}`, {
+        method: "PUT",
+        body: { docstatus: 2 },
+      }).catch(() => {});
+      salesOrderName = submitted[0].name;
+    }
 
     // Records the link so resolveMyPesanan (and any retried notification,
     // via the early-return above) can find this Sales Order directly by
     // name instead of reverse-searching for it.
     await erpRequest(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
       method: "PUT",
-      body: { custom_sales_order: created.data.name },
+      body: { custom_sales_order: salesOrderName },
     }).catch(() => {});
 
-    return { ok: true, salesOrderId: created.data.name };
+    return { ok: true, salesOrderId: salesOrderName };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+      retryable: true,
+    };
   }
 }
 
@@ -477,7 +711,27 @@ export async function resolveMyPesanan(customer: Customer | null): Promise<Pesan
         },
       },
     );
+    // Child-table rows carry no parent docstatus, so cancelled invoices
+    // (e.g. one staff voided and re-issued) are dropped with one more
+    // lookup — otherwise a cancelled invoice would still count as "the"
+    // invoice of its order.
+    const candidates = [...new Set(siRes.data.map((row) => row.parent))];
+    const live = new Set<string>();
+    if (candidates.length > 0) {
+      const liveRes = await erpRequest<{ data: { name: string }[] }>("/api/resource/Sales Invoice", {
+        params: {
+          fields: jsonFields(["name"]),
+          filters: jsonFilters([
+            ["name", "in", candidates],
+            ["docstatus", "=", 1],
+          ]),
+          limit_page_length: "0",
+        },
+      });
+      for (const row of liveRes.data) live.add(row.name);
+    }
     for (const row of siRes.data) {
+      if (!live.has(row.parent)) continue;
       const set = invoicesBySalesOrder.get(row.sales_order) ?? new Set<string>();
       set.add(row.parent);
       invoicesBySalesOrder.set(row.sales_order, set);
@@ -502,15 +756,17 @@ export async function resolveMyPesanan(customer: Customer | null): Promise<Pesan
     deliveryRequests = drRes.data;
   }
 
-  const deliveryStatusForQuotation = (quotation: string): string | null => {
+  const deliveryForQuotation = (quotation: string) => {
     const salesOrder = salesOrderByQuotation.get(quotation);
     const invoices = salesOrder ? invoicesBySalesOrder.get(salesOrder) : undefined;
     if (!invoices) return null;
-    return deliveryRequests.find((dr) => invoices.has(dr.sales_invoice))?.delivery_status ?? null;
+    return deliveryRequests.find((dr) => invoices.has(dr.sales_invoice)) ?? null;
   };
 
   return res.data.map((q): Pesanan => {
-    const deliveryStatus = deliveryStatusForQuotation(q.name);
+    const delivery = deliveryForQuotation(q.name);
+    const deliveryStatus = delivery?.delivery_status ?? null;
+    const salesOrderId = salesOrderByQuotation.get(q.name) ?? null;
 
     let stage: OrderStage;
     if (q.status !== "Ordered") stage = "unpaid";
@@ -518,8 +774,21 @@ export async function resolveMyPesanan(customer: Customer | null): Promise<Pesan
     else if (deliveryStatus === "Terkirim") stage = "completed";
     else stage = "shipping";
 
+    // The document number the customer sees follows the order's real
+    // paperwork: Quotation while unpaid, Sales Order while it's being
+    // prepared/shipped, and the Sales Invoice once it has been delivered.
+    // `id` stays the Quotation — it's the stable key the detail and
+    // resume-payment endpoints resolve the order by.
+    const invoiceId = stage === "completed" ? (delivery?.sales_invoice ?? null) : null;
+    let displayId = q.name;
+    if (stage === "completed") displayId = invoiceId ?? salesOrderId ?? q.name;
+    else if (stage !== "unpaid") displayId = salesOrderId ?? q.name;
+
     return {
       id: q.name,
+      displayId,
+      salesOrderId,
+      invoiceId,
       date: q.transaction_date,
       status: q.status,
       total: q.grand_total,
