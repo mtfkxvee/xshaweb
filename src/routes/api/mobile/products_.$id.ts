@@ -7,7 +7,8 @@ export const Route = createFileRoute("/api/mobile/products_/$id")({
     handlers: {
       OPTIONS: () => corsPreflight(),
       GET: async ({ params, request }) => {
-        const product = await getProductById({ data: { id: params.id } });
+        const warehouse = new URL(request.url).searchParams.get("warehouse") || undefined;
+        const product = await getProductById({ data: { id: params.id, warehouse } });
         return json(product && { ...product, image: proxyPrivateImage(product.image, request.url) });
       },
     },

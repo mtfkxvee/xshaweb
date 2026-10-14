@@ -10,6 +10,10 @@ export type Product = {
   // tab instead of the undiscounted standard_rate.
   oldPrice?: number;
   discountPercent?: number;
+  // Present only when the outlet picked by the shopper has just a few left
+  // (1..LOW_STOCK_THRESHOLD). The real quantity is never sent — a threshold
+  // crossing is all the app needs to show "Tersisa N".
+  lowStock?: number;
 };
 
 // A node in the Item Group tree (ERPNext models Department > Category >

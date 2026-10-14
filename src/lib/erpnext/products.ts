@@ -22,6 +22,15 @@ type ErpItem = {
   description: string | null;
 };
 
+// "Tersisa N" is shown only at or below this many units.
+export const LOW_STOCK_THRESHOLD = 5;
+
+export function lowStockOf(quantity: number | null | undefined): number | undefined {
+  if (quantity == null) return undefined;
+  const whole = Math.floor(quantity);
+  return whole >= 1 && whole <= LOW_STOCK_THRESHOLD ? whole : undefined;
+}
+
 function mapItemToProduct(item: ErpItem, erpBaseUrl: string, discount?: ErpPricingRule): Product {
   const oldPrice = item.standard_rate ?? 0;
   const priceFields = discount ? discountFor(discount, oldPrice) : null;
@@ -81,6 +90,8 @@ async function resolveItemGroupNames(itemGroup: string, isGroup: boolean): Promi
 
 type ErpBinRow = {
   item_code: string;
+  // Summed over every rack when the outlet's warehouse is a group.
+  actual_qty: number;
   item_name: string;
   item_group: string;
   standard_rate: number;
@@ -225,6 +236,7 @@ async function loadStockRows(warehouse: string): Promise<ErpBinRow[]> {
     params: {
       fields: jsonFields([
         "item_code",
+        "actual_qty",
         "item_code.item_name as item_name",
         "item_code.item_group as item_group",
         "item_code.standard_rate as standard_rate",
@@ -237,10 +249,13 @@ async function loadStockRows(warehouse: string): Promise<ErpBinRow[]> {
     },
   });
 
-  // A group warehouse holds the same item on many racks: one row per item.
+  // A group warehouse holds the same item on many racks: one row per item,
+  // with the quantity summed across them.
   const byItem = new Map<string, ErpBinRow>();
   for (const row of res.data) {
-    if (!byItem.has(row.item_code)) byItem.set(row.item_code, row);
+    const existing = byItem.get(row.item_code);
+    if (existing) existing.actual_qty += row.actual_qty ?? 0;
+    else byItem.set(row.item_code, { ...row, actual_qty: row.actual_qty ?? 0 });
   }
   const rows = [...byItem.values()];
 
@@ -382,7 +397,7 @@ export const getProducts = createServerFn({ method: "GET" })
   });
 
 export const getProductById = createServerFn({ method: "GET" })
-  .validator((input: { id: string }) => input)
+  .validator((input: { id: string; warehouse?: string }) => input)
   .handler(async ({ data }): Promise<Product | null> => {
     setResponseHeader("Cache-Control", CACHE_SHORT);
 
@@ -407,7 +422,16 @@ export const getProductById = createServerFn({ method: "GET" })
         },
       );
       const discounts = await getActiveDiscounts([res.data.name]);
-      return mapItemToProduct(res.data, config.url, discounts.get(res.data.name));
+      const product = mapItemToProduct(res.data, config.url, discounts.get(res.data.name));
+
+      // With an outlet selected, flag a nearly-sold-out item. Best-effort:
+      // a failed lookup just means no label, never a failed product page.
+      if (data.warehouse) {
+        const available = await getAvailableQuantities([res.data.name], data.warehouse).catch(() => null);
+        const low = lowStockOf(available?.get(res.data.name));
+        if (low !== undefined) return { ...product, lowStock: low };
+      }
+      return product;
     } catch {
       return null;
     }
