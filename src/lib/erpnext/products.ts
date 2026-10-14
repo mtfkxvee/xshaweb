@@ -47,8 +47,9 @@ export type ProductQuery = {
   // Whether `itemGroup` is a branch (Department/Category — matched via
   // "descendants of") or a leaf Sub Category (matched via exact equality).
   itemGroupIsGroup?: boolean;
-  // Outlet warehouse (Outlet.warehouse) to restrict results to items that
-  // have stock there (Bin.actual_qty > 0). The quantity itself is never
+  // Outlet warehouse (Outlet.warehouse_consumer_apps — a leaf, or a group
+  // whose descendants count too) to restrict results to items that have
+  // stock there (Bin.actual_qty > 0). The quantity itself is never
   // exposed to the client — it's only used as a filter.
   warehouse?: string;
   page?: number;
@@ -175,36 +176,95 @@ async function getActiveDiscounts(itemCodes: string[]): Promise<Map<string, ErpP
   return map;
 }
 
+// ---- Warehouse scoping -----------------------------------------------------
+// Stock (Bin) only ever exists on LEAF warehouses. An outlet whose
+// `warehouse_consumer_apps` points at a group warehouse (e.g. XSM's
+// "AREA XSM - X", with ~670 rack warehouses under it) therefore has no Bin
+// rows of its own — matching it exactly returns nothing. A group is matched
+// as "itself and everything under it" instead; a leaf keeps the cheaper
+// exact match.
+const WAREHOUSE_META_TTL_MS = 10 * 60_000;
+const warehouseGroupCache = new Map<string, { isGroup: boolean; at: number }>();
+
+async function warehouseFilter(warehouse: string): Promise<[string, string, string]> {
+  const cached = warehouseGroupCache.get(warehouse);
+  let isGroup = false;
+  if (cached && Date.now() - cached.at < WAREHOUSE_META_TTL_MS) {
+    isGroup = cached.isGroup;
+  } else {
+    try {
+      const res = await erpRequest<{ data: { is_group: number } }>(
+        `/api/resource/Warehouse/${encodeURIComponent(warehouse)}`,
+      );
+      isGroup = Boolean(res.data.is_group);
+      warehouseGroupCache.set(warehouse, { isGroup, at: Date.now() });
+    } catch {
+      // Unknown warehouse / ERPNext hiccup: fall back to the exact match
+      // (the previous behavior) rather than failing the whole request.
+    }
+  }
+  return isGroup
+    ? ["warehouse", "descendants of (inclusive)", warehouse]
+    : ["warehouse", "=", warehouse];
+}
+
+// The in-stock item list of one outlet is the same for every catalog page,
+// search and sort — and for a group warehouse it is thousands of rows — so
+// the finished list is kept for a short while instead of being re-read from
+// ERPNext on each request. Only RESOLVED data is cached (never a pending
+// promise): a Worker must not await I/O started by another request.
+const STOCK_CACHE_TTL_MS = 45_000;
+const STOCK_CACHE_MAX_WAREHOUSES = 40;
+const stockRowsCache = new Map<string, { at: number; rows: ErpBinRow[] }>();
+
+async function loadStockRows(warehouse: string): Promise<ErpBinRow[]> {
+  const hit = stockRowsCache.get(warehouse);
+  if (hit && Date.now() - hit.at < STOCK_CACHE_TTL_MS) return hit.rows;
+
+  const res = await erpRequest<{ data: ErpBinRow[] }>("/api/resource/Bin", {
+    params: {
+      fields: jsonFields([
+        "item_code",
+        "item_code.item_name as item_name",
+        "item_code.item_group as item_group",
+        "item_code.standard_rate as standard_rate",
+        "item_code.image as image",
+        "item_code.disabled as disabled",
+        "item_code.is_sales_item as is_sales_item",
+      ]),
+      filters: jsonFilters([await warehouseFilter(warehouse), ["actual_qty", ">", 0]]),
+      limit_page_length: "0",
+    },
+  });
+
+  // A group warehouse holds the same item on many racks: one row per item.
+  const byItem = new Map<string, ErpBinRow>();
+  for (const row of res.data) {
+    if (!byItem.has(row.item_code)) byItem.set(row.item_code, row);
+  }
+  const rows = [...byItem.values()];
+
+  stockRowsCache.set(warehouse, { at: Date.now(), rows });
+  if (stockRowsCache.size > STOCK_CACHE_MAX_WAREHOUSES) {
+    const oldest = stockRowsCache.keys().next().value;
+    if (oldest !== undefined) stockRowsCache.delete(oldest);
+  }
+  return rows;
+}
+
 async function getProductsInStock(
   data: ProductQuery,
   page: number,
   pageSize: number,
   erpBaseUrl: string,
 ): Promise<ProductPage> {
-  const [binRes, groupNames] = await Promise.all([
-    erpRequest<{ data: ErpBinRow[] }>("/api/resource/Bin", {
-      params: {
-        fields: jsonFields([
-          "item_code",
-          "item_code.item_name as item_name",
-          "item_code.item_group as item_group",
-          "item_code.standard_rate as standard_rate",
-          "item_code.image as image",
-          "item_code.disabled as disabled",
-          "item_code.is_sales_item as is_sales_item",
-        ]),
-        filters: jsonFilters([
-          ["warehouse", "=", data.warehouse],
-          ["actual_qty", ">", 0],
-        ]),
-        limit_page_length: "0",
-      },
-    }),
+  const [stockRows, groupNames] = await Promise.all([
+    loadStockRows(data.warehouse as string),
     data.itemGroup ? resolveItemGroupNames(data.itemGroup, Boolean(data.itemGroupIsGroup)) : null,
   ]);
 
   const search = data.search?.toLowerCase();
-  let rows = binRes.data.filter(
+  let rows = stockRows.filter(
     (r) =>
       r.disabled === 0 &&
       r.is_sales_item === 1 &&
@@ -366,7 +426,7 @@ async function filterInStock<T extends { id: string }>(
       fields: jsonFields(["item_code"]),
       filters: jsonFilters([
         ["item_code", "in", items.map((i) => i.id)],
-        ["warehouse", "=", warehouse],
+        await warehouseFilter(warehouse),
         ["actual_qty", ">", 0],
       ]),
       limit_page_length: "0",
@@ -388,7 +448,7 @@ export async function checkItemsInStock(itemCodes: string[], warehouse: string):
       fields: jsonFields(["item_code"]),
       filters: jsonFilters([
         ["item_code", "in", itemCodes],
-        ["warehouse", "=", warehouse],
+        await warehouseFilter(warehouse),
         ["actual_qty", ">", 0],
       ]),
       limit_page_length: "0",
@@ -412,7 +472,7 @@ export const checkItemStock = createServerFn({ method: "GET" })
         fields: jsonFields(["name"]),
         filters: jsonFilters([
           ["item_code", "=", data.itemCode],
-          ["warehouse", "=", data.warehouse],
+          await warehouseFilter(data.warehouse),
           ["actual_qty", ">", 0],
         ]),
         limit_page_length: "1",
@@ -524,7 +584,7 @@ export const getPromoProducts = createServerFn({ method: "GET" })
             fields: jsonFields(["item_code"]),
             filters: jsonFilters([
               ["item_code", "in", batchCodes],
-              ["warehouse", "=", warehouse],
+              await warehouseFilter(warehouse),
               ["actual_qty", ">", 0],
             ]),
             limit_page_length: "0",
