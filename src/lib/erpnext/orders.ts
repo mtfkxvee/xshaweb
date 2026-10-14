@@ -3,7 +3,9 @@ import { getCookie, setResponseHeader } from "@tanstack/react-start/server";
 import { getCurrentCustomer, SESSION_COOKIE } from "./auth";
 import { ErpnextError, erpRequest, erpToday, jsonFields, jsonFilters } from "./client";
 import { isErpnextConfigured } from "./config";
-import { createDokuCheckoutSession } from "./doku";
+import { createDokuCheckoutSession, getDokuOrderStatus } from "./doku";
+import { getAvailableQuantities } from "./products";
+import { notifyPaymentConfirmed } from "./push";
 import { mockOrders } from "./mock-data";
 import type { Customer, Order, OrderDetail, OrderLine, OrderStage, Pesanan } from "./types";
 
@@ -19,7 +21,7 @@ export type CreateOrderResult =
   | { ok: true; orderId: string; paymentUrl?: string; paymentError?: string }
   | {
       ok: false;
-      reason: "not_configured" | "not_authenticated" | "erpnext_error";
+      reason: "not_configured" | "not_authenticated" | "erpnext_error" | "out_of_stock";
       message?: string;
     };
 
@@ -118,6 +120,48 @@ async function findRecentOpenQuotation(
   return null;
 }
 
+// How long an unpaid order stays visible and payable. DOKU's own payment
+// link dies after an hour, but "Lanjutkan Pembayaran" mints a fresh one, so
+// this is what finally retires an abandoned order (and its stale prices).
+const UNPAID_EXPIRY_MS = 48 * 60 * 60_000;
+
+// ERPNext's `creation` is "YYYY-MM-DD HH:mm:ss.ffffff" in the business's
+// timezone (Asia/Jakarta, UTC+7).
+function erpTimestampMs(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const ms = new Date(`${value.replace(" ", "T")}+07:00`).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+export function isUnpaidExpired(creation: string | null | undefined, now = Date.now()): boolean {
+  const created = erpTimestampMs(creation);
+  return created !== null && now - created > UNPAID_EXPIRY_MS;
+}
+
+// Names of the cart lines the outlet can't cover in full, or [] when
+// everything is available (or the outlet has no app warehouse to check).
+async function findStockShortages(
+  outletCode: string,
+  lines: { item_code: string; item_name: string; qty: number }[],
+): Promise<string[]> {
+  const outlet = await erpRequest<{ data: { warehouse_consumer_apps: string | null } }>(
+    `/api/resource/Outlet/${encodeURIComponent(outletCode)}`,
+  );
+  const warehouse = outlet.data.warehouse_consumer_apps;
+  if (!warehouse) return [];
+
+  const needed = new Map<string, { name: string; qty: number }>();
+  for (const line of lines) {
+    const entry = needed.get(line.item_code) ?? { name: line.item_name || line.item_code, qty: 0 };
+    entry.qty += line.qty;
+    needed.set(line.item_code, entry);
+  }
+  const available = await getAvailableQuantities([...needed.keys()], warehouse);
+  return [...needed]
+    .filter(([code, want]) => (available.get(code) ?? 0) < want.qty)
+    .map(([, want]) => want.name);
+}
+
 export async function submitOrder(
   customer: Customer | null,
   items: OrderLine[],
@@ -159,6 +203,21 @@ export async function submitOrder(
         };
       }),
     );
+
+    // The cart screen checks stock, but only the server can be trusted to:
+    // an order for goods the outlet doesn't have would be paid for and then
+    // can't be fulfilled. A failed lookup never blocks the order (same
+    // best-effort stance as the cart's own check).
+    if (outletCode) {
+      const shortages = await findStockShortages(outletCode, items_).catch(() => []);
+      if (shortages.length > 0) {
+        return {
+          ok: false,
+          reason: "out_of_stock",
+          message: `Stok tidak mencukupi untuk: ${shortages.join(", ")}.`,
+        };
+      }
+    }
 
     // A retried checkout (timeout, double tap, flaky network) would
     // otherwise create a second Quotation and DOKU session for the same
@@ -418,11 +477,19 @@ export async function resolveQuotationDetail(
 }
 
 export type ConvertResult =
-  | { ok: true; salesOrderId: string }
+  // `created` is true only when THIS call recorded the payment — a retry
+  // that finds the work already done reports false, so side effects such as
+  // the "payment received" push are sent exactly once.
+  | { ok: true; salesOrderId: string; created: boolean; customerId: string | null }
   // `retryable` tells the DOKU webhook whether answering with an error (so
-  // DOKU re-sends the notification) can ever help — false only for an
-  // invoice number that isn't one of our Quotations at all.
-  | { ok: false; message: string; retryable: boolean };
+  // DOKU re-sends the notification) can ever help — false for an invoice
+  // that isn't ours, was cancelled, or whose paid amount doesn't match.
+  | {
+      ok: false;
+      message: string;
+      retryable: boolean;
+      reason?: "not_found" | "cancelled" | "amount_mismatch";
+    };
 
 type SalesOrderRef = { name: string; docstatus: number; creation: string };
 
@@ -471,7 +538,10 @@ async function listSalesOrdersForQuotation(quotationId: string): Promise<SalesOr
 //    one wins and the other deletes itself, with a final check that
 //    cancels any second *submitted* one — so one payment always ends as
 //    exactly one Sales Order.
-export async function convertQuotationToSalesOrder(quotationId: string): Promise<ConvertResult> {
+export async function convertQuotationToSalesOrder(
+  quotationId: string,
+  opts: { confirmedAmount?: number | null } = {},
+): Promise<ConvertResult> {
   if (!isErpnextConfigured()) {
     return { ok: false, message: "ERPNext belum dikonfigurasi.", retryable: true };
   }
@@ -482,6 +552,8 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       existing = await erpRequest<{
         data: {
           status: string;
+          docstatus: number;
+          party_name: string;
           custom_sales_order: string | null;
           custom_outlet: string | null;
           custom_latitude: number | null;
@@ -506,24 +578,67 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       // Not one of our Quotations (e.g. a DOKU test invoice) — nothing a
       // retry could ever fix.
       if (error instanceof ErpnextError && error.status === 404) {
-        return { ok: false, message: `Quotation ${quotationId} tidak ditemukan.`, retryable: false };
+        return {
+          ok: false,
+          message: `Quotation ${quotationId} tidak ditemukan.`,
+          retryable: false,
+          reason: "not_found",
+        };
       }
       throw error;
+    }
+
+    const customerId = existing.data.party_name ?? null;
+
+    // The customer (or staff) cancelled it before the payment landed — a
+    // Sales Order can't be made from it, and no retry will change that.
+    // The money is with DOKU, so the caller flags it for a manual refund.
+    if (existing.data.docstatus === 2 || existing.data.status === "Cancelled") {
+      return {
+        ok: false,
+        message: `Quotation ${quotationId} sudah dibatalkan.`,
+        retryable: false,
+        reason: "cancelled",
+      };
     }
 
     // A Quotation ERPNext has already mapped into a Sales Order flips to
     // this status on its own — nothing further to do for a retried
     // notification.
     if (existing.data.status === "Ordered") {
-      return { ok: true, salesOrderId: existing.data.custom_sales_order ?? "" };
+      return {
+        ok: true,
+        salesOrderId: existing.data.custom_sales_order ?? "",
+        created: false,
+        customerId,
+      };
+    }
+
+    // DOKU states what it actually collected. Less than the order's total
+    // must not be booked as fully paid — and can't be fixed by retrying, so
+    // it is reported, not re-sent. More than the total (a gateway fee added
+    // on top) is still a fully paid order.
+    if (
+      opts.confirmedAmount != null &&
+      Math.round(opts.confirmedAmount) < Math.round(existing.data.grand_total)
+    ) {
+      return {
+        ok: false,
+        message: `Nominal DOKU ${opts.confirmedAmount} kurang dari total pesanan ${existing.data.grand_total}.`,
+        retryable: false,
+        reason: "amount_mismatch",
+      };
     }
 
     const found = await listSalesOrdersForQuotation(quotationId);
     const submittedBefore = found.find((so) => so.docstatus === 1);
-    if (submittedBefore) return { ok: true, salesOrderId: submittedBefore.name };
+    if (submittedBefore) {
+      return { ok: true, salesOrderId: submittedBefore.name, created: false, customerId };
+    }
 
     // A draft left by an earlier attempt that died before submitting.
     let salesOrderName: string | undefined = found[0]?.name;
+    let created = true;
 
     if (!salesOrderName) {
       // The cost center belongs to whichever outlet the customer checked out
@@ -588,7 +703,9 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
         await erpRequest(`/api/resource/Sales Order/${encodeURIComponent(salesOrderName)}`, {
           method: "DELETE",
         }).catch(() => {});
-        if (winner.docstatus === 1) return { ok: true, salesOrderId: winner.name };
+        if (winner.docstatus === 1) {
+          return { ok: true, salesOrderId: winner.name, created: false, customerId };
+        }
         salesOrderName = winner.name;
       }
     }
@@ -603,6 +720,7 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       // is success, anything else is a real failure to surface.
       const now = await listSalesOrdersForQuotation(quotationId);
       if (!now.some((so) => so.name === salesOrderName && so.docstatus === 1)) throw error;
+      created = false;
     }
 
     // Last guard for the narrow window where two attempts each submitted
@@ -615,6 +733,7 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
         body: { docstatus: 2 },
       }).catch(() => {});
       salesOrderName = submitted[0].name;
+      created = false;
     }
 
     // Records the link so resolveMyPesanan (and any retried notification,
@@ -625,7 +744,7 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
       body: { custom_sales_order: salesOrderName },
     }).catch(() => {});
 
-    return { ok: true, salesOrderId: salesOrderName };
+    return { ok: true, salesOrderId: salesOrderName, created, customerId };
   } catch (error) {
     return {
       ok: false,
@@ -649,10 +768,11 @@ export async function resolveMyPesanan(customer: Customer | null): Promise<Pesan
       status: string;
       grand_total: number;
       custom_sales_order: string | null;
+      creation: string;
     }[];
   }>("/api/resource/Quotation", {
     params: {
-      fields: jsonFields(["name", "transaction_date", "status", "grand_total", "custom_sales_order"]),
+      fields: jsonFields(["name", "transaction_date", "status", "grand_total", "custom_sales_order", "creation"]),
       filters: jsonFilters([
         ["party_name", "=", customer.id],
         ["docstatus", "=", 1],
@@ -661,6 +781,10 @@ export async function resolveMyPesanan(customer: Customer | null): Promise<Pesan
       limit_page_length: "20",
     },
   });
+
+  // An order that was never paid stops being offered after a while: its
+  // price is stale and nobody is waiting on it. Paid orders always stay.
+  res.data = res.data.filter((q) => q.status === "Ordered" || !isUnpaidExpired(q.creation));
 
   // An Ordered quotation's delivery progress lives on a Delivery Request,
   // which ERPNext only links to the *Sales Invoice* staff create from the
@@ -816,9 +940,9 @@ export async function resumeQuotationPayment(
 
   try {
     const res = await erpRequest<{
-      data: { party_name: string; status: string; grand_total: number };
+      data: { party_name: string; status: string; grand_total: number; creation: string };
     }>(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
-      params: { fields: jsonFields(["party_name", "status", "grand_total"]) },
+      params: { fields: jsonFields(["party_name", "status", "grand_total", "creation"]) },
     });
 
     if (res.data.party_name !== customer.id) {
@@ -826,6 +950,12 @@ export async function resumeQuotationPayment(
     }
     if (res.data.status === "Ordered") {
       return { ok: false, message: "Pesanan ini sudah dibayar." };
+    }
+    if (isUnpaidExpired(res.data.creation)) {
+      return {
+        ok: false,
+        message: "Pesanan ini sudah kedaluwarsa. Silakan buat pesanan baru dari keranjang.",
+      };
     }
 
     const payment = await createDokuCheckoutSession({
@@ -857,3 +987,169 @@ export const getMyOrders = createServerFn({ method: "GET" }).handler(async (): P
   const auth = await getCurrentCustomer();
   return resolveOrders(auth?.customer ?? null);
 });
+
+// ---------------------------------------------------------------------
+// Cancelling an unpaid order, payment verification, reconciliation
+// ---------------------------------------------------------------------
+
+export type CancelResult = { ok: true } | { ok: false; message: string };
+
+// The customer gives up on an order they haven't paid for. Only a
+// Quotation that hasn't turned into a Sales Order can be cancelled here —
+// once paid, taking it back is a refund, which staff handle.
+export async function cancelQuotation(
+  customer: Customer | null,
+  quotationId: string,
+): Promise<CancelResult> {
+  if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
+  if (!customer) return { ok: false, message: "Anda belum masuk." };
+
+  try {
+    const res = await erpRequest<{
+      data: { party_name: string; status: string; docstatus: number };
+    }>(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`);
+
+    if (res.data.party_name !== customer.id) {
+      return { ok: false, message: "Pesanan tidak ditemukan." };
+    }
+    if (res.data.docstatus === 2) return { ok: true };
+
+    const live = await listSalesOrdersForQuotation(quotationId);
+    if (res.data.status === "Ordered" || live.length > 0) {
+      return {
+        ok: false,
+        message: "Pesanan ini sudah dibayar dan tidak bisa dibatalkan dari aplikasi. Hubungi kami lewat WhatsApp.",
+      };
+    }
+
+    await erpRequest(`/api/resource/Quotation/${encodeURIComponent(quotationId)}`, {
+      method: "PUT",
+      body: { docstatus: 2 },
+    });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+// A note on the Quotation itself, where staff will see it — used when a
+// payment can't be booked automatically and needs a person.
+async function addQuotationComment(quotationId: string, content: string): Promise<void> {
+  await erpRequest("/api/resource/Comment", {
+    method: "POST",
+    body: {
+      comment_type: "Comment",
+      reference_doctype: "Quotation",
+      reference_name: quotationId,
+      content,
+    },
+  }).catch(() => {});
+}
+
+// What the DOKU webhook does with a conversion that failed for good
+// (cancelled order, mismatched amount): make it visible, since DOKU has
+// already taken the customer's money.
+export async function flagUnbookablePayment(quotationId: string, result: ConvertResult): Promise<void> {
+  if (result.ok) return;
+  if (result.reason !== "cancelled" && result.reason !== "amount_mismatch") return;
+  const why =
+    result.reason === "cancelled"
+      ? "Pembayaran DOKU diterima untuk pesanan yang sudah dibatalkan. Perlu refund manual."
+      : `Pembayaran DOKU tidak dicatat otomatis: ${result.message} Periksa dan proses manual.`;
+  await addQuotationComment(quotationId, why);
+}
+
+// Books a paid order and sends the one "payment received" push.
+export async function bookPaidQuotation(quotationId: string, confirmedAmount: number | null): Promise<ConvertResult> {
+  const result = await convertQuotationToSalesOrder(quotationId, { confirmedAmount });
+  if (result.ok && result.created && result.customerId) {
+    await notifyPaymentConfirmed(result.customerId, quotationId, result.salesOrderId);
+  } else if (!result.ok) {
+    await flagUnbookablePayment(quotationId, result);
+  }
+  return result;
+}
+
+export type VerifyPaymentResult = { ok: true; paid: boolean } | { ok: false; message: string };
+
+// The customer just came back from the payment page and the webhook hasn't
+// landed yet (or never will): ask DOKU directly and book the order if it
+// was paid. Safe to call repeatedly — conversion is idempotent.
+export async function verifyQuotationPayment(
+  customer: Customer | null,
+  quotationId: string,
+): Promise<VerifyPaymentResult> {
+  if (!isErpnextConfigured()) return { ok: false, message: "ERPNext belum dikonfigurasi." };
+  if (!customer) return { ok: false, message: "Anda belum masuk." };
+
+  try {
+    const q = await erpRequest<{ data: { party_name: string; status: string } }>(
+      `/api/resource/Quotation/${encodeURIComponent(quotationId)}`,
+    );
+    if (q.data.party_name !== customer.id) return { ok: false, message: "Pesanan tidak ditemukan." };
+    if (q.data.status === "Ordered") return { ok: true, paid: true };
+
+    const status = await getDokuOrderStatus(quotationId);
+    if (!status.ok) return { ok: false, message: status.message };
+    if (status.status !== "SUCCESS") return { ok: true, paid: false };
+
+    const booked = await bookPaidQuotation(quotationId, status.amount);
+    return booked.ok ? { ok: true, paid: true } : { ok: false, message: booked.message };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export type ReconcileSummary = {
+  checked: number;
+  booked: string[];
+  stillUnpaid: number;
+  problems: { quotation: string; message: string }[];
+};
+
+// Run on a schedule (see /api/internal/reconcile-payments): recent orders
+// still unpaid in ERPNext are checked against DOKU, and any DOKU says were
+// paid get booked — so a lost webhook is repaired within minutes instead of
+// waiting for someone to notice.
+export async function reconcilePendingPayments(): Promise<ReconcileSummary> {
+  const summary: ReconcileSummary = { checked: 0, booked: [], stillUnpaid: 0, problems: [] };
+  if (!isErpnextConfigured()) return summary;
+
+  const now = Date.now();
+  // Younger than a few minutes may simply not have been paid/notified yet.
+  const newest = erpTimestamp(new Date(now - 3 * 60_000));
+  const oldest = erpTimestamp(new Date(now - 24 * 60 * 60_000));
+
+  const list = await erpRequest<{ data: { name: string }[] }>("/api/resource/Quotation", {
+    params: {
+      fields: jsonFields(["name"]),
+      filters: jsonFilters([
+        ["docstatus", "=", 1],
+        ["status", "=", "Open"],
+        ["creation", ">=", oldest],
+        ["creation", "<=", newest],
+      ]),
+      order_by: "creation desc",
+      limit_page_length: "30",
+    },
+  });
+
+  // One at a time on purpose: this is a background sweep and must not
+  // compete with customer traffic for DOKU's and ERPNext's capacity.
+  for (const { name } of list.data) {
+    summary.checked += 1;
+    const status = await getDokuOrderStatus(name);
+    if (!status.ok) {
+      summary.problems.push({ quotation: name, message: status.message });
+      continue;
+    }
+    if (status.status !== "SUCCESS") {
+      summary.stillUnpaid += 1;
+      continue;
+    }
+    const booked = await bookPaidQuotation(name, status.amount);
+    if (booked.ok) summary.booked.push(name);
+    else summary.problems.push({ quotation: name, message: booked.message });
+  }
+  return summary;
+}

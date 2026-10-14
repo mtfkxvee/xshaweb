@@ -20,8 +20,11 @@ import { Route as MemberRouteImport } from './routes/member'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as PromoRouteImport } from './routes/promo'
 import { Route as TentangRouteImport } from './routes/tentang'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as BlogPostIdRouteImport } from './routes/blog_.$postId'
 import { Route as KarirJobIdRouteImport } from './routes/karir_.$jobId'
+import { Route as ApiInternalReconcilePaymentsRouteImport } from './routes/api/internal/reconcile-payments'
+import { Route as ApiMobileAppConfigRouteImport } from './routes/api/mobile/app-config'
 import { Route as ApiMobileImageProxyRouteImport } from './routes/api/mobile/image-proxy'
 import { Route as ApiMobileItemGroupsRouteImport } from './routes/api/mobile/item-groups'
 import { Route as ApiMobileLoyaltyRouteImport } from './routes/api/mobile/loyalty'
@@ -47,7 +50,9 @@ import { Route as ApiMobileQuotationsIdRouteImport } from './routes/api/mobile/q
 import { Route as ApiMobileAuthGoogleCallbackRouteImport } from './routes/api/mobile/auth.google.callback'
 import { Route as ApiMobileAuthGoogleStartRouteImport } from './routes/api/mobile/auth.google.start'
 import { Route as ApiMobileAuthMeAddressRouteImport } from './routes/api/mobile/auth.me_.address'
+import { Route as ApiMobileQuotationsIdCancelRouteImport } from './routes/api/mobile/quotations_.$id.cancel'
 import { Route as ApiMobileQuotationsIdResumePaymentRouteImport } from './routes/api/mobile/quotations_.$id.resume-payment'
+import { Route as ApiMobileQuotationsIdVerifyPaymentRouteImport } from './routes/api/mobile/quotations_.$id.verify-payment'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -104,6 +109,11 @@ const TentangRoute = TentangRouteImport.update({
   path: '/tentang',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BlogPostIdRoute = BlogPostIdRouteImport.update({
   id: '/blog_/$postId',
   path: '/blog/$postId',
@@ -112,6 +122,17 @@ const BlogPostIdRoute = BlogPostIdRouteImport.update({
 const KarirJobIdRoute = KarirJobIdRouteImport.update({
   id: '/karir_/$jobId',
   path: '/karir/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInternalReconcilePaymentsRoute =
+  ApiInternalReconcilePaymentsRouteImport.update({
+    id: '/api/internal/reconcile-payments',
+    path: '/api/internal/reconcile-payments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileAppConfigRoute = ApiMobileAppConfigRouteImport.update({
+  id: '/api/mobile/app-config',
+  path: '/api/mobile/app-config',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMobileImageProxyRoute = ApiMobileImageProxyRouteImport.update({
@@ -246,10 +267,22 @@ const ApiMobileAuthMeAddressRoute = ApiMobileAuthMeAddressRouteImport.update({
   path: '/api/mobile/auth/me/address',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileQuotationsIdCancelRoute =
+  ApiMobileQuotationsIdCancelRouteImport.update({
+    id: '/cancel',
+    path: '/cancel',
+    getParentRoute: () => ApiMobileQuotationsIdRoute,
+  } as any)
 const ApiMobileQuotationsIdResumePaymentRoute =
   ApiMobileQuotationsIdResumePaymentRouteImport.update({
     id: '/resume-payment',
     path: '/resume-payment',
+    getParentRoute: () => ApiMobileQuotationsIdRoute,
+  } as any)
+const ApiMobileQuotationsIdVerifyPaymentRoute =
+  ApiMobileQuotationsIdVerifyPaymentRouteImport.update({
+    id: '/verify-payment',
+    path: '/verify-payment',
     getParentRoute: () => ApiMobileQuotationsIdRoute,
   } as any)
 
@@ -265,8 +298,11 @@ export interface FileRoutesByFullPath {
   '/profil': typeof ProfilRoute
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
+  '/api/health': typeof ApiHealthRoute
   '/blog/$postId': typeof BlogPostIdRoute
   '/karir/$jobId': typeof KarirJobIdRoute
+  '/api/internal/reconcile-payments': typeof ApiInternalReconcilePaymentsRoute
+  '/api/mobile/app-config': typeof ApiMobileAppConfigRoute
   '/api/mobile/image-proxy': typeof ApiMobileImageProxyRoute
   '/api/mobile/item-groups': typeof ApiMobileItemGroupsRoute
   '/api/mobile/loyalty': typeof ApiMobileLoyaltyRoute
@@ -292,7 +328,9 @@ export interface FileRoutesByFullPath {
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
   '/api/mobile/auth/me/address': typeof ApiMobileAuthMeAddressRoute
+  '/api/mobile/quotations/$id/cancel': typeof ApiMobileQuotationsIdCancelRoute
   '/api/mobile/quotations/$id/resume-payment': typeof ApiMobileQuotationsIdResumePaymentRoute
+  '/api/mobile/quotations/$id/verify-payment': typeof ApiMobileQuotationsIdVerifyPaymentRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -306,8 +344,11 @@ export interface FileRoutesByTo {
   '/profil': typeof ProfilRoute
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
+  '/api/health': typeof ApiHealthRoute
   '/blog/$postId': typeof BlogPostIdRoute
   '/karir/$jobId': typeof KarirJobIdRoute
+  '/api/internal/reconcile-payments': typeof ApiInternalReconcilePaymentsRoute
+  '/api/mobile/app-config': typeof ApiMobileAppConfigRoute
   '/api/mobile/image-proxy': typeof ApiMobileImageProxyRoute
   '/api/mobile/item-groups': typeof ApiMobileItemGroupsRoute
   '/api/mobile/loyalty': typeof ApiMobileLoyaltyRoute
@@ -333,7 +374,9 @@ export interface FileRoutesByTo {
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
   '/api/mobile/auth/me/address': typeof ApiMobileAuthMeAddressRoute
+  '/api/mobile/quotations/$id/cancel': typeof ApiMobileQuotationsIdCancelRoute
   '/api/mobile/quotations/$id/resume-payment': typeof ApiMobileQuotationsIdResumePaymentRoute
+  '/api/mobile/quotations/$id/verify-payment': typeof ApiMobileQuotationsIdVerifyPaymentRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -348,8 +391,11 @@ export interface FileRoutesById {
   '/profil': typeof ProfilRoute
   '/promo': typeof PromoRoute
   '/tentang': typeof TentangRoute
+  '/api/health': typeof ApiHealthRoute
   '/blog_/$postId': typeof BlogPostIdRoute
   '/karir_/$jobId': typeof KarirJobIdRoute
+  '/api/internal/reconcile-payments': typeof ApiInternalReconcilePaymentsRoute
+  '/api/mobile/app-config': typeof ApiMobileAppConfigRoute
   '/api/mobile/image-proxy': typeof ApiMobileImageProxyRoute
   '/api/mobile/item-groups': typeof ApiMobileItemGroupsRoute
   '/api/mobile/loyalty': typeof ApiMobileLoyaltyRoute
@@ -375,7 +421,9 @@ export interface FileRoutesById {
   '/api/mobile/auth/google/callback': typeof ApiMobileAuthGoogleCallbackRoute
   '/api/mobile/auth/google/start': typeof ApiMobileAuthGoogleStartRoute
   '/api/mobile/auth/me_/address': typeof ApiMobileAuthMeAddressRoute
+  '/api/mobile/quotations_/$id/cancel': typeof ApiMobileQuotationsIdCancelRoute
   '/api/mobile/quotations_/$id/resume-payment': typeof ApiMobileQuotationsIdResumePaymentRoute
+  '/api/mobile/quotations_/$id/verify-payment': typeof ApiMobileQuotationsIdVerifyPaymentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -391,8 +439,11 @@ export interface FileRouteTypes {
     | '/profil'
     | '/promo'
     | '/tentang'
+    | '/api/health'
     | '/blog/$postId'
     | '/karir/$jobId'
+    | '/api/internal/reconcile-payments'
+    | '/api/mobile/app-config'
     | '/api/mobile/image-proxy'
     | '/api/mobile/item-groups'
     | '/api/mobile/loyalty'
@@ -418,7 +469,9 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
     | '/api/mobile/auth/me/address'
+    | '/api/mobile/quotations/$id/cancel'
     | '/api/mobile/quotations/$id/resume-payment'
+    | '/api/mobile/quotations/$id/verify-payment'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -432,8 +485,11 @@ export interface FileRouteTypes {
     | '/profil'
     | '/promo'
     | '/tentang'
+    | '/api/health'
     | '/blog/$postId'
     | '/karir/$jobId'
+    | '/api/internal/reconcile-payments'
+    | '/api/mobile/app-config'
     | '/api/mobile/image-proxy'
     | '/api/mobile/item-groups'
     | '/api/mobile/loyalty'
@@ -459,7 +515,9 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
     | '/api/mobile/auth/me/address'
+    | '/api/mobile/quotations/$id/cancel'
     | '/api/mobile/quotations/$id/resume-payment'
+    | '/api/mobile/quotations/$id/verify-payment'
   id:
     | '__root__'
     | '/'
@@ -473,8 +531,11 @@ export interface FileRouteTypes {
     | '/profil'
     | '/promo'
     | '/tentang'
+    | '/api/health'
     | '/blog_/$postId'
     | '/karir_/$jobId'
+    | '/api/internal/reconcile-payments'
+    | '/api/mobile/app-config'
     | '/api/mobile/image-proxy'
     | '/api/mobile/item-groups'
     | '/api/mobile/loyalty'
@@ -500,7 +561,9 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/google/callback'
     | '/api/mobile/auth/google/start'
     | '/api/mobile/auth/me_/address'
+    | '/api/mobile/quotations_/$id/cancel'
     | '/api/mobile/quotations_/$id/resume-payment'
+    | '/api/mobile/quotations_/$id/verify-payment'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -515,8 +578,11 @@ export interface RootRouteChildren {
   ProfilRoute: typeof ProfilRoute
   PromoRoute: typeof PromoRoute
   TentangRoute: typeof TentangRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   BlogPostIdRoute: typeof BlogPostIdRoute
   KarirJobIdRoute: typeof KarirJobIdRoute
+  ApiInternalReconcilePaymentsRoute: typeof ApiInternalReconcilePaymentsRoute
+  ApiMobileAppConfigRoute: typeof ApiMobileAppConfigRoute
   ApiMobileImageProxyRoute: typeof ApiMobileImageProxyRoute
   ApiMobileItemGroupsRoute: typeof ApiMobileItemGroupsRoute
   ApiMobileLoyaltyRoute: typeof ApiMobileLoyaltyRoute
@@ -623,6 +689,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TentangRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/blog_/$postId': {
       id: '/blog_/$postId'
       path: '/blog/$postId'
@@ -635,6 +708,20 @@ declare module '@tanstack/react-router' {
       path: '/karir/$jobId'
       fullPath: '/karir/$jobId'
       preLoaderRoute: typeof KarirJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/reconcile-payments': {
+      id: '/api/internal/reconcile-payments'
+      path: '/api/internal/reconcile-payments'
+      fullPath: '/api/internal/reconcile-payments'
+      preLoaderRoute: typeof ApiInternalReconcilePaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/app-config': {
+      id: '/api/mobile/app-config'
+      path: '/api/mobile/app-config'
+      fullPath: '/api/mobile/app-config'
+      preLoaderRoute: typeof ApiMobileAppConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/mobile/image-proxy': {
@@ -812,6 +899,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileAuthMeAddressRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/quotations_/$id/cancel': {
+      id: '/api/mobile/quotations_/$id/cancel'
+      path: '/cancel'
+      fullPath: '/api/mobile/quotations/$id/cancel'
+      preLoaderRoute: typeof ApiMobileQuotationsIdCancelRouteImport
+      parentRoute: typeof ApiMobileQuotationsIdRoute
+    }
     '/api/mobile/quotations_/$id/resume-payment': {
       id: '/api/mobile/quotations_/$id/resume-payment'
       path: '/resume-payment'
@@ -819,16 +913,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileQuotationsIdResumePaymentRouteImport
       parentRoute: typeof ApiMobileQuotationsIdRoute
     }
+    '/api/mobile/quotations_/$id/verify-payment': {
+      id: '/api/mobile/quotations_/$id/verify-payment'
+      path: '/verify-payment'
+      fullPath: '/api/mobile/quotations/$id/verify-payment'
+      preLoaderRoute: typeof ApiMobileQuotationsIdVerifyPaymentRouteImport
+      parentRoute: typeof ApiMobileQuotationsIdRoute
+    }
   }
 }
 
 interface ApiMobileQuotationsIdRouteChildren {
+  ApiMobileQuotationsIdCancelRoute: typeof ApiMobileQuotationsIdCancelRoute
   ApiMobileQuotationsIdResumePaymentRoute: typeof ApiMobileQuotationsIdResumePaymentRoute
+  ApiMobileQuotationsIdVerifyPaymentRoute: typeof ApiMobileQuotationsIdVerifyPaymentRoute
 }
 
 const ApiMobileQuotationsIdRouteChildren: ApiMobileQuotationsIdRouteChildren = {
+  ApiMobileQuotationsIdCancelRoute: ApiMobileQuotationsIdCancelRoute,
   ApiMobileQuotationsIdResumePaymentRoute:
     ApiMobileQuotationsIdResumePaymentRoute,
+  ApiMobileQuotationsIdVerifyPaymentRoute:
+    ApiMobileQuotationsIdVerifyPaymentRoute,
 }
 
 const ApiMobileQuotationsIdRouteWithChildren =
@@ -848,8 +954,11 @@ const rootRouteChildren: RootRouteChildren = {
   ProfilRoute: ProfilRoute,
   PromoRoute: PromoRoute,
   TentangRoute: TentangRoute,
+  ApiHealthRoute: ApiHealthRoute,
   BlogPostIdRoute: BlogPostIdRoute,
   KarirJobIdRoute: KarirJobIdRoute,
+  ApiInternalReconcilePaymentsRoute: ApiInternalReconcilePaymentsRoute,
+  ApiMobileAppConfigRoute: ApiMobileAppConfigRoute,
   ApiMobileImageProxyRoute: ApiMobileImageProxyRoute,
   ApiMobileItemGroupsRoute: ApiMobileItemGroupsRoute,
   ApiMobileLoyaltyRoute: ApiMobileLoyaltyRoute,

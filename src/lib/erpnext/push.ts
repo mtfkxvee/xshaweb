@@ -232,3 +232,19 @@ export async function notifyDeliveryUpdate(
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }
 }
+
+// Sent once, by whichever attempt actually recorded the payment — a
+// retried DOKU notification (or the status-check fallback) finds the order
+// already done and does not call this again.
+export async function notifyPaymentConfirmed(
+  customerId: string,
+  quotationId: string,
+  salesOrderId: string,
+): Promise<void> {
+  const no = salesOrderId || quotationId;
+  await sendPushToCustomer(customerId, {
+    title: "Pembayaran Berhasil",
+    body: `Pembayaran pesanan ${no} sudah kami terima. Pesanan Anda sedang disiapkan.`,
+    data: { type: "payment", orderId: quotationId, label: no },
+  }).catch(() => 0);
+}

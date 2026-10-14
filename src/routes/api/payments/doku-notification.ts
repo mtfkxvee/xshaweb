@@ -1,13 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertQuotationToSalesOrder, type ConvertResult } from "@/lib/erpnext/orders";
 import { verifyDokuNotificationSignature } from "@/lib/erpnext/doku";
+import { handleDokuNotification, type DokuNotification } from "@/lib/erpnext/payment-webhook";
 
 const NOTIFICATION_PATH = "/api/payments/doku-notification";
-
-type DokuNotification = {
-  transaction?: { status?: string };
-  order?: { invoice_number?: string };
-};
 
 // DOKU calls this server-to-server once a Checkout payment settles (see
 // developers.doku.com/get-started-with-doku-api/notification). It's public
@@ -32,36 +27,20 @@ export const Route = createFileRoute("/api/payments/doku-notification")({
         });
         if (!verified) return new Response("Invalid signature", { status: 401 });
 
-        const body = JSON.parse(rawBody) as DokuNotification;
-        const invoiceNumber = body.order?.invoice_number;
-        const status = body.transaction?.status;
+        let body: DokuNotification;
+        try {
+          body = JSON.parse(rawBody) as DokuNotification;
+        } catch {
+          return new Response("Invalid body", { status: 400 });
+        }
 
-        if (invoiceNumber && status === "SUCCESS") {
-          // DOKU stops retrying only once it gets HTTP 200, so a payment
-          // we failed to record must NOT be acknowledged — otherwise the
-          // customer has paid, DOKU believes we know it, and the order
-          // sits "unpaid" forever. Answering with an error makes DOKU
-          // re-send (and its Notification Center shows it as failed, with
-          // a resend button once the cause is fixed). That is safe because
-          // the conversion is idempotent: a retry never duplicates the
-          // Sales Order. Only an invoice that isn't ours at all is
-          // acknowledged, since retrying that could never succeed.
-          const result = await convertQuotationToSalesOrder(invoiceNumber).catch(
-            (error: unknown): ConvertResult => ({
-              ok: false,
-              message: error instanceof Error ? error.message : String(error),
-              retryable: true,
-            }),
+        // See handleDokuNotification for why a failure answers 500.
+        const { retry } = await handleDokuNotification(body);
+        if (retry) {
+          return new Response(
+            JSON.stringify({ responseCode: "5005600", responseMessage: "Failed, please retry" }),
+            { status: 500, headers: { "Content-Type": "application/json" } },
           );
-          if (!result.ok) {
-            console.error(`DOKU payment for ${invoiceNumber} not recorded: ${result.message}`);
-            if (result.retryable) {
-              return new Response(
-                JSON.stringify({ responseCode: "5005600", responseMessage: "Failed, please retry" }),
-                { status: 500, headers: { "Content-Type": "application/json" } },
-              );
-            }
-          }
         }
 
         return new Response(

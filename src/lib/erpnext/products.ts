@@ -457,6 +457,31 @@ export async function checkItemsInStock(itemCodes: string[], warehouse: string):
   return new Set(res.data.map((r) => r.item_code));
 }
 
+// Total on-hand quantity per item at one outlet (a group warehouse counts
+// every rack under it). Items with nothing in stock are simply absent.
+export async function getAvailableQuantities(
+  itemCodes: string[],
+  warehouse: string,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (itemCodes.length === 0) return out;
+  const res = await erpRequest<{ data: { item_code: string; actual_qty: number }[] }>("/api/resource/Bin", {
+    params: {
+      fields: jsonFields(["item_code", "actual_qty"]),
+      filters: jsonFilters([
+        ["item_code", "in", itemCodes],
+        await warehouseFilter(warehouse),
+        ["actual_qty", ">", 0],
+      ]),
+      limit_page_length: "0",
+    },
+  });
+  for (const row of res.data) {
+    out.set(row.item_code, (out.get(row.item_code) ?? 0) + row.actual_qty);
+  }
+  return out;
+}
+
 // Used by the cart when adding an item while an outlet is selected, to warn
 // the shopper up front instead of them finding out only after checkout.
 export const checkItemStock = createServerFn({ method: "GET" })
