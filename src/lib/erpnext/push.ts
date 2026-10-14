@@ -126,6 +126,11 @@ export async function sendPushToCustomer(customerId: string, message: PushMessag
 
   // Expo reports tokens whose app was uninstalled / token revoked — prune
   // them so they don't pile up against the per-customer cap.
+  tickets.forEach((t, i) => {
+    if (t.status !== "ok") {
+      console.error(`Expo push refused for customer ${customerId} token #${i}: ${t.details?.error ?? t.status}`);
+    }
+  });
   const dead = tokens.filter((_, i) => tickets[i]?.details?.error === "DeviceNotRegistered");
   if (dead.length > 0) {
     await writeTokens(
@@ -138,28 +143,35 @@ export async function sendPushToCustomer(customerId: string, message: PushMessag
 
 export type DeliveryEvent = "insert" | "update";
 
-function deliveryMessage(
-  status: string,
-  event: DeliveryEvent,
-  orderId: string,
-): { title: string; body: string } | null {
-  // A brand-new Delivery Request is the moment staff pressed "Kirim" —
-  // always worth telling the customer, whatever status it starts with.
-  if (event === "insert") {
-    return { title: "Pesanan Sedang Dikirim", body: `Pesanan ${orderId} sedang dalam proses pengiriman.` };
-  }
+// One push per step of the courier's progress, sent as the Delivery
+// Request *enters* that status (the ERPNext Server Script only calls us on
+// creation or when delivery_status changes). A skipped step is simply not
+// announced — e.g. Ditugaskan -> Terkirim sends "Ditugaskan" and
+// "Terkirim" but no "Dalam Perjalanan".
+// "Pending" (just created by "Kirim", courier not assigned yet) has no
+// push: the app already shows it as "Menunggu Penugasan".
+function deliveryMessage(status: string, orderNo: string): { title: string; body: string } | null {
   switch (status) {
+    case "Ditugaskan":
+      return {
+        title: "Kurir Sudah Ditugaskan",
+        body: `Pesanan ${orderNo} sudah ditugaskan ke kurir dan segera diantar.`,
+      };
     case "Dalam Perjalanan":
-      return { title: "Kurir Dalam Perjalanan", body: `Pesanan ${orderId} sedang diantar ke alamat Anda.` };
+      return {
+        title: "Pesanan Dalam Pengiriman",
+        body: `Kurir sedang mengantar pesanan ${orderNo} ke alamat Anda.`,
+      };
     case "Terkirim":
-      return { title: "Pesanan Diterima", body: `Pesanan ${orderId} telah diterima. Terima kasih!` };
+      return {
+        title: "Pesanan Telah Sampai",
+        body: `Pesanan ${orderNo} telah sampai. Terima kasih sudah berbelanja di X-SHA!`,
+      };
     case "Gagal":
       return {
         title: "Pengiriman Bermasalah",
-        body: `Pengiriman pesanan ${orderId} belum berhasil. Tim kami akan menghubungi Anda.`,
+        body: `Pengiriman pesanan ${orderNo} belum berhasil. Tim kami akan menghubungi Anda.`,
       };
-    // "Pending" / "Ditugaskan" are internal courier steps with nothing new
-    // for the customer to know beyond the insert notification above.
     default:
       return null;
   }
@@ -206,7 +218,7 @@ export async function notifyDeliveryUpdate(
     const status = dr.data.delivery_status ?? "";
     const label = status === "Terkirim" ? salesInvoice : (salesOrder ?? orderId);
 
-    const message = deliveryMessage(status, event, label);
+    const message = deliveryMessage(status, label);
     if (!message) return { ok: true, sent: 0, skipped: "status has no notification" };
 
     const sent = await sendPushToCustomer(si.data.customer, {
